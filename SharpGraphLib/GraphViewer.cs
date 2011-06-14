@@ -139,7 +139,7 @@ namespace SharpGraphLib
             Invalidate();
         }
 
-        public class DisplayedGraph
+        public class DisplayedGraph : ILegendItem
         {
             public enum PointMarkingStyle
             {

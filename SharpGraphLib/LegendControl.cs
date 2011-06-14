@@ -67,6 +67,17 @@ namespace SharpGraphLib
         internal GraphViewer _GraphViewer;
         int _AutoWidth, _AutoHeight;
 
+        /// <summary>
+        /// Collection items should implement ILegendItem
+        /// </summary>
+        protected virtual System.Collections.IEnumerable Items
+        {
+            get
+            {
+                return _GraphViewer.DisplayedGraphs;
+            }
+        }
+
         public void UpdateLegend()
         {
             foreach (LegendLabel lbl in _Labels)
@@ -77,7 +88,7 @@ namespace SharpGraphLib
             {
                 _AutoWidth = 0;
 
-                foreach (GraphViewer.DisplayedGraph gr in _GraphViewer.DisplayedGraphs)
+                foreach (ILegendItem gr in Items)
                 {
                     LegendLabel lbl = new LegendLabel();
                     lbl.Parent = this;

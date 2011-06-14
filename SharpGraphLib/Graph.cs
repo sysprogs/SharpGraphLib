@@ -1,9 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Drawing;
 
 namespace SharpGraphLib
 {
+    public interface ILegendItem
+    {
+        Color Color { get; }
+        bool Hidden { get; }
+        string Hint { get; }
+    }
+
     public class Graph
     {
         Dictionary<double, double> _Data = new Dictionary<double, double>();
