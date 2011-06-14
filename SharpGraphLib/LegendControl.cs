@@ -74,6 +74,8 @@ namespace SharpGraphLib
         {
             get
             {
+                if (_GraphViewer == null)
+                    return null;
                 return _GraphViewer.DisplayedGraphs;
             }
         }
@@ -84,7 +86,7 @@ namespace SharpGraphLib
                 lbl.Dispose();
             _Labels.Clear();
             int i = 0;
-            if (_GraphViewer != null)
+            if (Items != null)
             {
                 _AutoWidth = 0;
 
@@ -151,18 +153,18 @@ namespace SharpGraphLib
             }
         }
 
-        public delegate void HandleLabelHilighted(GraphViewer.DisplayedGraph graph);
+        public delegate void HandleLabelHilighted(ILegendItem item);
         public event HandleLabelHilighted OnLabelHilighted;
 
         LegendLabel _ActiveLabel;
 
-        public GraphViewer.DisplayedGraph ActiveGraph
+        public ILegendItem ActiveItem
         {
             get
             {
                 if (_ActiveLabel == null)
                     return null;
-                return _ActiveLabel.Tag as GraphViewer.DisplayedGraph;
+                return _ActiveLabel.Tag as ILegendItem;
             }
         }
 
@@ -192,13 +194,13 @@ namespace SharpGraphLib
             LegendLabel lbl = sender as LegendLabel;
             lbl.BackColor = _HighlightedColor;
             if (OnLabelHilighted != null)
-                OnLabelHilighted((GraphViewer.DisplayedGraph)lbl.Tag);
+                OnLabelHilighted((ILegendItem)lbl.Tag);
         }
 
-        public delegate void HandleLabelGrayed(GraphViewer.DisplayedGraph graph, bool grayed);
+        public delegate void HandleLabelGrayed(ILegendItem graph, bool grayed);
         public event HandleLabelGrayed OnLabelGrayed;
 
-        void LegendPanel_MouseClick(object sender, MouseEventArgs e)
+        virtual protected void LegendPanel_MouseClick(object sender, MouseEventArgs e)
         {
             if (e.Button != MouseButtons.Left)
                 return;
@@ -207,7 +209,7 @@ namespace SharpGraphLib
             LegendLabel label = sender as LegendLabel;
             label.Grayed = !label.Grayed;
             if (OnLabelGrayed != null)
-                OnLabelGrayed((GraphViewer.DisplayedGraph)label.Tag, label.Grayed);
+                OnLabelGrayed((ILegendItem)label.Tag, label.Grayed);
         }
 
         private Color _HighlightedColor = Color.LemonChiffon;

@@ -167,7 +167,7 @@ namespace SharpGraphTest
 
         private void removeGraphToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var gr = legendControl1.ActiveGraph;
+            var gr = legendControl1.ActiveItem as GraphViewer.DisplayedGraph;
             if (gr != null)
             {
                 graphColorProvider1.FreeColor(gr.Color);
@@ -177,7 +177,7 @@ namespace SharpGraphTest
 
         private void lineWidthToolStripMenuItem_TextChanged(object sender, EventArgs e)
         {
-            var gr = legendControl1.ActiveGraph;
+            var gr = legendControl1.ActiveItem as GraphViewer.DisplayedGraph;
             int val;
             int.TryParse((sender as ToolStripComboBox).Text, out val);
             if ((gr != null) && (val != 0))

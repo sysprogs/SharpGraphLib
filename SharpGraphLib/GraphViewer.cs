@@ -120,7 +120,7 @@ namespace SharpGraphLib
             }
         }
 
-        void _Legend_OnLabelGrayed(GraphViewer.DisplayedGraph graph, bool grayed)
+        void _Legend_OnLabelGrayed(ILegendItem graph, bool grayed)
         {
             foreach(DisplayedGraph gr in _Graphs)
                 if (gr.Hint == graph.Hint)
@@ -129,7 +129,7 @@ namespace SharpGraphLib
 
         GraphViewer.DisplayedGraph _HighlightedGraph;
 
-        void _Legend_OnLabelHilighted(GraphViewer.DisplayedGraph graph)
+        void _Legend_OnLabelHilighted(ILegendItem graph)
         {
             _HighlightedGraph = null;
             if (graph != null)
