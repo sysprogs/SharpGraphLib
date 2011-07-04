@@ -135,7 +135,7 @@ namespace SharpGraphLib
             }
         }
 
-        void lbl_MouseDown(object sender, MouseEventArgs e)
+        protected virtual void lbl_MouseDown(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
@@ -144,7 +144,7 @@ namespace SharpGraphLib
             }
         }
 
-        void lbl_MouseMove(object sender, MouseEventArgs e)
+        protected virtual void lbl_MouseMove(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
