@@ -77,6 +77,12 @@
     <Compile Include="LegendControl.designer.cs">
       <DependentUpon>LegendControl.cs</DependentUpon>
     </Compile>
+    <Compile Include="PieDiagram.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="PieDiagram.designer.cs">
+      <DependentUpon>PieDiagram.cs</DependentUpon>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ScaledViewerBase.cs">
       <SubType>UserControl</SubType>

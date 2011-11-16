@@ -441,12 +441,23 @@ namespace SharpGraphLib
             ForceCustomBounds = true;
         }
 
-        GraphBounds TransformedBounds
+        protected GraphBounds TransformedBounds
         {
             get
             {
                 if (_ForceCustomBounds)
-                    return _ForcedBounds;
+                {
+                    GraphBounds forcedBounds = _ForcedBounds;
+                    if (double.IsNaN(forcedBounds.MinX))
+                        forcedBounds.MinX = _TransformedBounds.MinX;
+                    if (double.IsNaN(forcedBounds.MaxX))
+                        forcedBounds.MaxX = _TransformedBounds.MaxX;
+                    if (double.IsNaN(forcedBounds.MinY))
+                        forcedBounds.MinY = _TransformedBounds.MinY;
+                    if (double.IsNaN(forcedBounds.MaxY))
+                        forcedBounds.MaxY = _TransformedBounds.MaxY;
+                    return forcedBounds;
+                }
                 else
                     return _TransformedBounds;
             }
@@ -484,18 +495,21 @@ namespace SharpGraphLib
                 _TransformedBounds.MaxY = max;
             }
 
+            GraphBounds transformedBounds = _TransformedBounds;
+
             if (_ForceCustomBounds)
             {
-                double minX = _ForcedBounds.MinX, minY = _ForcedBounds.MinY, maxX = _ForcedBounds.MaxX, maxY = _ForcedBounds.MaxY;
+                transformedBounds = TransformedBounds;
+                double minX = transformedBounds.MinX, minY = transformedBounds.MinY, maxX = transformedBounds.MaxX, maxY = transformedBounds.MaxY;
                 if (TransformX != null)
                 {
-                    TransformX(this, true, ref minX);
-                    TransformX(this, true, ref maxX);
+                    TransformX(this, false, ref minX);
+                    TransformX(this, false, ref maxX);
                 }
                 if (TransformY != null)
                 {
-                    TransformY(this, true, ref minY);
-                    TransformY(this, true, ref maxY);
+                    TransformY(this, false, ref minY);
+                    TransformY(this, false, ref maxY);
                 }
                 nonTransformedBounds = new GraphBounds(minX, maxX, minY, maxY);
             }
@@ -505,7 +519,7 @@ namespace SharpGraphLib
             Graphics gr = Graphics.FromHwnd(Handle);
 
             //Create list of grid points, screen coordinates will be assigned later
-            _YGridObj = _YGrid.CreateDimensionObjectTemplate(_TransformedBounds.MinY, _TransformedBounds.MaxY, nonTransformedBounds.MinY, nonTransformedBounds.MaxY, _DataRectangle.Height);
+            _YGridObj = _YGrid.CreateDimensionObjectTemplate(transformedBounds.MinY, transformedBounds.MaxY, nonTransformedBounds.MinY, nonTransformedBounds.MaxY, _DataRectangle.Height);
 
             /* Grid/labels computation algorithm:
              *  1. Compute fixed Y padding (font height)
@@ -552,7 +566,7 @@ namespace SharpGraphLib
             //Reflect both X and Y padding
             _DataRectangle = new Rectangle(_AdditionalPadding.Left + xPadding, _AdditionalPadding.Top, Width - _AdditionalPadding.Horizontal - 1 - xPadding, Height - _AdditionalPadding.Vertical - 1 - yPadding);
 
-            _XGridObj = _XGrid.CreateDimensionObjectTemplate(_TransformedBounds.MinX, _TransformedBounds.MaxX, nonTransformedBounds.MinX, nonTransformedBounds.MaxX, _DataRectangle.Width);
+            _XGridObj = _XGrid.CreateDimensionObjectTemplate(transformedBounds.MinX, transformedBounds.MaxX, nonTransformedBounds.MinX, nonTransformedBounds.MaxX, _DataRectangle.Width);
 
             for (int i = 0; i < _XGridObj.Data.Length; i++)
             {
@@ -579,6 +593,7 @@ namespace SharpGraphLib
 
             _YGridObj.ComputeLabelVisibility(_YGrid.DistributeLabelsEvenly && _YGridObj.Transformed, true);
             _XGridObj.ComputeLabelVisibility(_XGrid.DistributeLabelsEvenly && _XGridObj.Transformed, false);
+            Invalidate();
         }
 
         protected virtual void GetRawDataBounds(out GraphBounds nonTransformedBounds, out GraphBounds transformedBounds)

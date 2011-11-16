@@ -41,8 +41,6 @@ namespace SharpGraphLib
             }
         }
 
-        ContextMenu _GraphContextMenu;
-
         const int kPadding = 5;
         const int kMaxOffset = 20;
 
