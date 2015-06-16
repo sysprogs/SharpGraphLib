@@ -517,6 +517,12 @@ namespace SharpGraphLib
             return frm;
         }
 
+        public void OnGraphChanged()
+        {
+            UpdateScaling();
+            Invalidate();
+        }
+
     }
 
     public delegate void GraphMouseEventHandler(InteractiveGraphViewer sender, GraphMouseEventArgs e);

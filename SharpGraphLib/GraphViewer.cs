@@ -27,6 +27,25 @@ namespace SharpGraphLib
             }
         }
 
+        public ContextMenuStrip EmbeddedLegendContextMenu
+        {
+            set
+            {
+                if (_EmbeddedLegend != null)
+                    _EmbeddedLegend.ContextMenuStrip = value;
+            }
+        }
+
+        public DisplayedGraph EmbeddedLegendSelectedGraph
+        {
+            get
+            {
+                if (_EmbeddedLegend == null)
+                    return null;
+                return (DisplayedGraph)_EmbeddedLegend.ActiveItem;
+            }
+        }
+
         LegendControl _Legend, _EmbeddedLegend;
         bool _EmbeddedLegendMoved = false;
 
@@ -425,6 +444,31 @@ namespace SharpGraphLib
                 }
             }
             distanceSquare = bestDistanceSquare;
+            return bestPoint;
+        }
+
+        public DisplayedGraph.DisplayedPoint FindNearestReferencePoint(double x, bool ignoreHiddenGraphs)
+        {
+            double bestDist = int.MaxValue;
+            DisplayedGraph.DisplayedPoint bestPoint = null;
+
+            foreach (DisplayedGraph gr in _Graphs)
+            {
+                if (ignoreHiddenGraphs && gr.Hidden)
+                    continue;
+
+                int nearestRefPoint;
+                double yFound = gr.GetLinearlyInterpolatedY(x, out nearestRefPoint);
+                if (double.IsNaN(yFound))
+                    continue;
+                KeyValuePair<double, double> kv = gr.Graph.GetPointByIndex(nearestRefPoint);
+                double thisDist = Math.Abs(kv.Key - x);
+                if (thisDist < bestDist)
+                {
+                    bestDist = thisDist;
+                    bestPoint = new DisplayedGraph.DisplayedPoint(gr, nearestRefPoint);
+                }
+            }
             return bestPoint;
         }
 
