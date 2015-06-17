@@ -27,6 +27,8 @@ namespace SharpGraphLib
             }
         }
 
+        public bool HasNoGraphs { get { return _Graphs.Count == 0; } }
+
         public ContextMenuStrip EmbeddedLegendContextMenu
         {
             set
@@ -168,6 +170,7 @@ namespace SharpGraphLib
                 Circle,
             }
 
+            public object Tag;
             GraphViewer _Viewer;
             Graph _Graph;
             Color _Color;
@@ -198,6 +201,8 @@ namespace SharpGraphLib
                 {
                     get { return _Graph.Graph.GetPointByIndex(_PointIndex).Value; }
                 }
+
+                public DisplayedGraph Graph { get { return _Graph; } }
 
                 public PointMarkingStyle MarkerStyle
                 {
@@ -264,13 +269,16 @@ namespace SharpGraphLib
             internal GraphicsPath RebuildPath()
             {
                 GraphicsPath path = new GraphicsPath();
-                Point[] points = new Point[_Graph.PointCount];
-                int idx = 0;
+                if (_Graph.SortedPoints.Count > 0)
+                {
+                    Point[] points = new Point[_Graph.PointCount];
+                    int idx = 0;
 
-                foreach (KeyValuePair<double, double> kv in _Graph.SortedPoints)
-                    points[idx++] = new Point(_Viewer.MapX(kv.Key, true), _Viewer.MapY(kv.Value, true));
+                    foreach (KeyValuePair<double, double> kv in _Graph.SortedPoints)
+                        points[idx++] = new Point(_Viewer.MapX(kv.Key, true), _Viewer.MapY(kv.Value, true));
 
-                path.AddLines(points);
+                    path.AddLines(points);
+                }
                 return path;
             }
 
@@ -463,6 +471,31 @@ namespace SharpGraphLib
                     continue;
                 KeyValuePair<double, double> kv = gr.Graph.GetPointByIndex(nearestRefPoint);
                 double thisDist = Math.Abs(kv.Key - x);
+                if (thisDist < bestDist)
+                {
+                    bestDist = thisDist;
+                    bestPoint = new DisplayedGraph.DisplayedPoint(gr, nearestRefPoint);
+                }
+            }
+            return bestPoint;
+        }
+
+        public DisplayedGraph.DisplayedPoint FindNearestReferencePoint(double x, double y, bool ignoreHiddenGraphs)
+        {
+            double bestDist = int.MaxValue;
+            DisplayedGraph.DisplayedPoint bestPoint = null;
+
+            foreach (DisplayedGraph gr in _Graphs)
+            {
+                if (ignoreHiddenGraphs && gr.Hidden)
+                    continue;
+
+                int nearestRefPoint;
+                double yFound = gr.GetLinearlyInterpolatedY(x, out nearestRefPoint);
+                if (double.IsNaN(yFound))
+                    continue;
+                KeyValuePair<double, double> kv = gr.Graph.GetPointByIndex(nearestRefPoint);
+                double thisDist = (kv.Key - x) * (kv.Key - x) + (kv.Value - y) * (kv.Value - y);
                 if (thisDist < bestDist)
                 {
                     bestDist = thisDist;

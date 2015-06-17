@@ -422,66 +422,72 @@ namespace SharpGraphLib
 
         protected override void OnPaint(PaintEventArgs e)
         {
-            base.OnPaint(e);
-            foreach (Tracker trk in _Trackers)
+            try
             {
-                if (trk.Hidden)
-                    continue;
-                Pen trackerPen = new Pen(trk.LineColor, trk.LineWidth);
+                base.OnPaint(e);
+                foreach (Tracker trk in _Trackers)
+                {
+                    if (trk.Hidden)
+                        continue;
+                    Pen trackerPen = new Pen(trk.LineColor, trk.LineWidth);
 
-                int x = MapX(trk.X, true), y = MapY(trk.Y, true);
-                switch (trk.Style)
-                {
-                    case Tracker.TrackerStyle.Cross:
-                    case Tracker.TrackerStyle.Horizontal:
-                        e.Graphics.DrawLine(trackerPen, DataRectangle.Left, y, DataRectangle.Right, y);
-                        break;
+                    int x = MapX(trk.X, true), y = MapY(trk.Y, true);
+                    switch (trk.Style)
+                    {
+                        case Tracker.TrackerStyle.Cross:
+                        case Tracker.TrackerStyle.Horizontal:
+                            e.Graphics.DrawLine(trackerPen, DataRectangle.Left, y, DataRectangle.Right, y);
+                            break;
+                    }
+                    switch (trk.Style)
+                    {
+                        case Tracker.TrackerStyle.Cross:
+                        case Tracker.TrackerStyle.Vertical:
+                            e.Graphics.DrawLine(trackerPen, x, DataRectangle.Top, x, DataRectangle.Bottom);
+                            break;
+                    }
+                    switch (trk.Style)
+                    {
+                        case Tracker.TrackerStyle.SmallX:
+                            e.Graphics.DrawLine(trackerPen, x - kSmallTrackerSize / 2, y + kSmallTrackerSize / 2, x + kSmallTrackerSize / 2, y - kSmallTrackerSize / 2);
+                            e.Graphics.DrawLine(trackerPen, x + kSmallTrackerSize / 2, y + kSmallTrackerSize / 2, x - kSmallTrackerSize / 2, y - kSmallTrackerSize / 2);
+                            break;
+                    }
                 }
-                switch (trk.Style)
+
+                foreach (FloatingHint hint in _Hints)
                 {
-                    case Tracker.TrackerStyle.Cross:
-                    case Tracker.TrackerStyle.Vertical:
-                        e.Graphics.DrawLine(trackerPen, x, DataRectangle.Top, x, DataRectangle.Bottom);
-                        break;
+                    if (hint.Hidden)
+                        continue;
+
+                    int x = MapX(hint.X, true), y = MapY(hint.Y, true);
+                    Size neededSize = hint.MeasureOrDraw(e.Graphics, new Point(), true);
+                    int finalX = x + kHintOffset, finalY = y - kHintOffset - neededSize.Height;
+                    if ((finalX + neededSize.Width) > DataRectangle.Right)
+                        finalX = x - kHintOffset - neededSize.Width;
+                    if (finalY < DataRectangle.Top)
+                        finalY = y + kHintOffset;
+                    hint.MeasureOrDraw(e.Graphics, new Point(finalX, finalY), false);
                 }
-                switch (trk.Style)
+
+                if ((_PreviewRectangle != null) && _PreviewRectangle.Visible)
                 {
-                    case Tracker.TrackerStyle.SmallX:
-                        e.Graphics.DrawLine(trackerPen, x - kSmallTrackerSize / 2, y + kSmallTrackerSize / 2, x + kSmallTrackerSize / 2, y - kSmallTrackerSize / 2);
-                        e.Graphics.DrawLine(trackerPen, x + kSmallTrackerSize / 2, y + kSmallTrackerSize / 2, x - kSmallTrackerSize / 2, y - kSmallTrackerSize / 2);
-                        break;
+                    Brush br = new SolidBrush(_PreviewRectangle.FillColor);
+                    Pen pen = new Pen(_PreviewRectangle.LineColor, _PreviewRectangle.LineWidth);
+
+                    Rectangle r = Rectangle.FromLTRB(MapX(_PreviewRectangle.Left, true), MapY(_PreviewRectangle.Top, true), MapX(_PreviewRectangle.Right, true), MapY(_PreviewRectangle.Bottom, true));
+                    e.Graphics.FillRectangle(br, r);
+                    e.Graphics.DrawRectangle(pen, r);
+                }
+
+                if ((_DistanceLine != null) && _DistanceLine.Visible)
+                {
+                    Pen pen = new Pen(_DistanceLine.LineColor, _DistanceLine.LineWidth);
+                    e.Graphics.DrawLine(pen, MapX(_DistanceLine.X1, true), MapY(_DistanceLine.Y1, true), MapX(_DistanceLine.X2, true), MapY(_DistanceLine.Y2, true));
                 }
             }
-
-            foreach (FloatingHint hint in _Hints)
+            catch
             {
-                if (hint.Hidden)
-                    continue;
-
-                int x = MapX(hint.X, true), y = MapY(hint.Y, true);
-                Size neededSize = hint.MeasureOrDraw(e.Graphics, new Point(), true);
-                int finalX = x + kHintOffset, finalY = y - kHintOffset - neededSize.Height;
-                if ((finalX + neededSize.Width) > DataRectangle.Right)
-                    finalX = x - kHintOffset - neededSize.Width;
-                if (finalY < DataRectangle.Top)
-                    finalY = y + kHintOffset;
-                hint.MeasureOrDraw(e.Graphics, new Point(finalX, finalY), false);
-            }
-
-            if ((_PreviewRectangle != null) && _PreviewRectangle.Visible)
-            {
-                Brush br = new SolidBrush(_PreviewRectangle.FillColor);
-                Pen pen = new Pen(_PreviewRectangle.LineColor, _PreviewRectangle.LineWidth);
-
-                Rectangle r = Rectangle.FromLTRB(MapX(_PreviewRectangle.Left, true), MapY(_PreviewRectangle.Top, true), MapX(_PreviewRectangle.Right, true), MapY(_PreviewRectangle.Bottom, true));
-                e.Graphics.FillRectangle(br, r);
-                e.Graphics.DrawRectangle(pen, r);
-            }
-
-            if ((_DistanceLine != null) && _DistanceLine.Visible)
-            {
-                Pen pen = new Pen(_DistanceLine.LineColor, _DistanceLine.LineWidth);
-                e.Graphics.DrawLine(pen, MapX(_DistanceLine.X1, true), MapY(_DistanceLine.Y1, true), MapX(_DistanceLine.X2, true), MapY(_DistanceLine.Y2, true));
             }
         }
 

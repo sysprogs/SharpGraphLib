@@ -68,5 +68,16 @@ namespace SharpGraphLib
                 gr.AddPoint(x, func(x));
             return gr;
         }
+
+        public void RemovePointsBeforeX(double cutoffX)
+        {
+            List<double> removedKeys = new List<double>();
+            foreach (var k in _Data.Keys)
+                if (k < cutoffX)
+                    removedKeys.Add(k);
+            foreach (var k in removedKeys)
+                _Data.Remove(k);
+            _SortedDataUpdatePending = true;
+        }
     }
 }
