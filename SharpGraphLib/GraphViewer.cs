@@ -495,7 +495,8 @@ namespace SharpGraphLib
                 if (double.IsNaN(yFound))
                     continue;
                 KeyValuePair<double, double> kv = gr.Graph.GetPointByIndex(nearestRefPoint);
-                double thisDist = (kv.Key - x) * (kv.Key - x) + (kv.Value - y) * (kv.Value - y);
+                double w = MapWidth(Math.Abs(kv.Key - x)), h = MapHeight(Math.Abs(kv.Value - y));
+                double thisDist = w * w + h * h;
                 if (thisDist < bestDist)
                 {
                     bestDist = thisDist;
