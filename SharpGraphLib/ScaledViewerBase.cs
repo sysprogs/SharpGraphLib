@@ -19,7 +19,7 @@ namespace SharpGraphLib
         Padding _AdditionalPadding;
         bool _AlwaysShowZeroX, _AlwaysShowZeroY, _CenterX, _CenterY;
         bool _AntiAlias = true;
-
+        
         const int kDistanceForNonFittingPoints = 10;
 
         GridSettings _XGrid = new GridSettings();
@@ -615,45 +615,48 @@ namespace SharpGraphLib
                 e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
             base.OnPaint(e);
 
-            Pen borderPen = Pens.Black;
+            using (Pen borderPen = new Pen(this.ForeColor))
+            using (Brush coordinateLabelBrush = new SolidBrush(this.ForeColor))
+            using (Pen xGridPen = _XGrid.CreatePen())
+            using (Pen yGridPen = _YGrid.CreatePen())
+            {
+                e.Graphics.DrawRectangle(borderPen, _DataRectangle);
 
-            Pen xGridPen = _XGrid.CreatePen(), yGridPen = _YGrid.CreatePen();
-            e.Graphics.DrawRectangle(borderPen, _DataRectangle);
-
-            int textHeight = Size.Ceiling(e.Graphics.MeasureString("M", Font)).Height;
-            if (_XGridObj != null)
-                foreach (GridLine line in _XGridObj.Data)
-                {
-                    if (_XGrid.ShowGridLines)
-                        e.Graphics.DrawLine(xGridPen, line.ScreenCoordinate, _DataRectangle.Top, line.ScreenCoordinate, _DataRectangle.Bottom);
-                    if (_XGrid.ShowLabels)
+                int textHeight = Size.Ceiling(e.Graphics.MeasureString("M", Font)).Height;
+                if (_XGridObj != null)
+                    foreach (GridLine line in _XGridObj.Data)
                     {
-                        if (line.LabelVisible)
+                        if (_XGrid.ShowGridLines)
+                            e.Graphics.DrawLine(xGridPen, line.ScreenCoordinate, _DataRectangle.Top, line.ScreenCoordinate, _DataRectangle.Bottom);
+                        if (_XGrid.ShowLabels)
                         {
-                            e.Graphics.DrawString(line.Label, Font, Brushes.Black, line.TextCoordinate, ClientRectangle.Bottom - _AdditionalPadding.Bottom - textHeight);
-                            e.Graphics.DrawLine(borderPen, line.ScreenCoordinate, _DataRectangle.Bottom + 2, line.ScreenCoordinate, _DataRectangle.Bottom + BigRulerDash + 1);
+                            if (line.LabelVisible)
+                            {
+                                e.Graphics.DrawString(line.Label, Font, coordinateLabelBrush, line.TextCoordinate, ClientRectangle.Bottom - _AdditionalPadding.Bottom - textHeight);
+                                e.Graphics.DrawLine(borderPen, line.ScreenCoordinate, _DataRectangle.Bottom + 2, line.ScreenCoordinate, _DataRectangle.Bottom + BigRulerDash + 1);
+                            }
+                            else
+                                e.Graphics.DrawLine(borderPen, line.ScreenCoordinate, _DataRectangle.Bottom + 2, line.ScreenCoordinate, _DataRectangle.Bottom + SmallRulerDash + 1);
                         }
-                        else
-                            e.Graphics.DrawLine(borderPen, line.ScreenCoordinate, _DataRectangle.Bottom + 2, line.ScreenCoordinate, _DataRectangle.Bottom + SmallRulerDash + 1);
                     }
-                }
 
-            if (_YGridObj != null)
-                foreach (GridLine line in _YGridObj.Data)
-                {
-                    if (_YGrid.ShowGridLines)
-                        e.Graphics.DrawLine(yGridPen, _DataRectangle.Left, line.ScreenCoordinate, _DataRectangle.Right, line.ScreenCoordinate);
-                    if (_YGrid.ShowLabels)
+                if (_YGridObj != null)
+                    foreach (GridLine line in _YGridObj.Data)
                     {
-                        if (line.LabelVisible)
+                        if (_YGrid.ShowGridLines)
+                            e.Graphics.DrawLine(yGridPen, _DataRectangle.Left, line.ScreenCoordinate, _DataRectangle.Right, line.ScreenCoordinate);
+                        if (_YGrid.ShowLabels)
                         {
-                            e.Graphics.DrawString(line.Label, Font, Brushes.Black, AdditionalPadding.Left, line.TextCoordinate);
-                            e.Graphics.DrawLine(borderPen, _DataRectangle.Left - BigRulerDash, line.ScreenCoordinate, _DataRectangle.Left - 2, line.ScreenCoordinate);
+                            if (line.LabelVisible)
+                            {
+                                e.Graphics.DrawString(line.Label, Font, coordinateLabelBrush, AdditionalPadding.Left, line.TextCoordinate);
+                                e.Graphics.DrawLine(borderPen, _DataRectangle.Left - BigRulerDash, line.ScreenCoordinate, _DataRectangle.Left - 2, line.ScreenCoordinate);
+                            }
+                            else
+                                e.Graphics.DrawLine(borderPen, _DataRectangle.Left - SmallRulerDash, line.ScreenCoordinate, _DataRectangle.Left - 2, line.ScreenCoordinate);
                         }
-                        else
-                            e.Graphics.DrawLine(borderPen, _DataRectangle.Left - SmallRulerDash, line.ScreenCoordinate, _DataRectangle.Left - 2, line.ScreenCoordinate);
                     }
-                }
+            }
         }
 
         #region Various helper methods
