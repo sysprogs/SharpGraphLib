@@ -94,7 +94,6 @@ namespace SharpGraphTest
 
         SharpGraphLib.GraphViewer.DisplayedGraph.DisplayedPoint m_HighlightedPoint;
 
-        SharpGraphLib.GraphViewer.DisplayedGraph.DisplayedPoint m_Pnt;
         private void graphViewer1_MouseMove(InteractiveGraphViewer sender, GraphMouseEventArgs e)
         {
             if (checkBox1.Checked)
@@ -123,6 +122,8 @@ namespace SharpGraphTest
                         m_Hint.FillColor = Color.FromArgb(200, Color.LightGreen);
                         m_Hint.Show(e, string.Format("{2}\nNearest X = {0:f2}\nNearest Y = {1:f2}", m_HighlightedPoint.X, m_HighlightedPoint.Y, point.Graph.Hint));
                     }
+
+                    graphViewer1.ActiveGraph = point.Graph;
                 }
                 else
                 {
@@ -131,6 +132,7 @@ namespace SharpGraphTest
                         m_Hint.FillColor = Color.FromArgb(200, Color.LightYellow);
                         m_Hint.Show(e, string.Format("{2}\nX = {0:f2}\nY (interpolated)={1:f2}", point.X, point.Y, point.Graph.Hint));
                     }
+                    graphViewer1.ActiveGraph = null;
                 }
             }
             if (graphViewer1.PreviewRectangle.Visible)
@@ -207,6 +209,11 @@ namespace SharpGraphTest
         private void checkBox5_CheckedChanged(object sender, EventArgs e)
         {
             graphViewer1.EmbeddedLegend = checkBox5.Checked;
+        }
+
+        private void checkBox8_CheckedChanged(object sender, EventArgs e)
+        {
+            graphViewer1.IndividualScaling = checkBox8.Checked;
         }
     }
 }

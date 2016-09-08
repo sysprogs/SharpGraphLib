@@ -135,6 +135,19 @@ namespace SharpGraphLib
             return _DataRectangle.Bottom - val;
         }
 
+        public int MapY(double transformedValue, GraphBounds fixedBounds)
+        {
+            if (!fixedBounds.IsValid)
+                return MapY(transformedValue);
+
+            int val = (int)Math.Round(((transformedValue - fixedBounds.MinY) * _DataRectangle.Height) / fixedBounds.DeltaY);
+            if (val > _DataRectangle.Bottom)
+                val = _DataRectangle.Bottom + kDistanceForNonFittingPoints;
+            if (val < 0)
+                val = -kDistanceForNonFittingPoints;
+            return _DataRectangle.Bottom - val;
+        }
+
         public int MapHeight(double transformedValue)
         {
             int val = (int)Math.Round(((transformedValue) * _DataRectangle.Height) / TransformedBounds.DeltaY);
@@ -157,6 +170,13 @@ namespace SharpGraphLib
             if (transform && (TransformY != null))
                 TransformY(this, true, ref value);
             return MapY(value);
+        }
+
+        public int MapY(double value, bool transform, GraphBounds fixedBounds)
+        {
+            if (transform && (TransformY != null))
+                TransformY(this, true, ref value);
+            return MapY(value, fixedBounds);
         }
 
         public double UnmapX(int value, bool reverseTransform)
@@ -471,31 +491,32 @@ namespace SharpGraphLib
         public virtual void UpdateScaling()
         {
             GraphBounds nonTransformedBounds;
-            GetRawDataBounds(out nonTransformedBounds, out _TransformedBounds);
+            GraphBounds transformedBounds;
+            GetRawDataBounds(out nonTransformedBounds, out transformedBounds);
             if (_AlwaysShowZeroX)
             {
-                _TransformedBounds.MinX = Math.Min(0, _TransformedBounds.MinX);
-                _TransformedBounds.MaxX = Math.Max(0, _TransformedBounds.MaxX);
+                transformedBounds.MinX = Math.Min(0, transformedBounds.MinX);
+                transformedBounds.MaxX = Math.Max(0, transformedBounds.MaxX);
             }
             if (_AlwaysShowZeroY)
             {
-                _TransformedBounds.MinY = Math.Min(0, _TransformedBounds.MinY);
-                _TransformedBounds.MaxY = Math.Max(0, _TransformedBounds.MaxY);
+                transformedBounds.MinY = Math.Min(0, transformedBounds.MinY);
+                transformedBounds.MaxY = Math.Max(0, transformedBounds.MaxY);
             }
             if (_CenterX)
             {
-                double max = Math.Max(Math.Abs(_TransformedBounds.MinX), Math.Abs(_TransformedBounds.MaxX));
-                _TransformedBounds.MinX = -max;
-                _TransformedBounds.MaxX = max;
+                double max = Math.Max(Math.Abs(transformedBounds.MinX), Math.Abs(transformedBounds.MaxX));
+                transformedBounds.MinX = -max;
+                transformedBounds.MaxX = max;
             }
             if (_CenterY)
             {
-                double max = Math.Max(Math.Abs(_TransformedBounds.MinY), Math.Abs(_TransformedBounds.MaxY));
-                _TransformedBounds.MinY = -max;
-                _TransformedBounds.MaxY = max;
+                double max = Math.Max(Math.Abs(transformedBounds.MinY), Math.Abs(transformedBounds.MaxY));
+                transformedBounds.MinY = -max;
+                transformedBounds.MaxY = max;
             }
 
-            GraphBounds transformedBounds = _TransformedBounds;
+            _TransformedBounds = transformedBounds;
 
             if (_ForceCustomBounds)
             {
@@ -516,84 +537,85 @@ namespace SharpGraphLib
 
             _DataRectangle = new Rectangle(_AdditionalPadding.Left, _AdditionalPadding.Top, Width - _AdditionalPadding.Horizontal - 1, Height - _AdditionalPadding.Vertical - 1);
 
-            Graphics gr = Graphics.FromHwnd(Handle);
-
-            //Create list of grid points, screen coordinates will be assigned later
-            _YGridObj = _YGrid.CreateDimensionObjectTemplate(transformedBounds.MinY, transformedBounds.MaxY, nonTransformedBounds.MinY, nonTransformedBounds.MaxY, _DataRectangle.Height);
-
-            /* Grid/labels computation algorithm:
-             *  1. Compute fixed Y padding (font height)
-             *  2. Determine Y labels, place them, compute X padding (max. Y label width)
-             *  3. Determine X labels, place them
-             *  4. Compute label visibility
-             */
-            
-            int maxLabelWidth = 0;
-            int yPadding = Size.Ceiling(gr.MeasureString("M", Font)).Height + BigRulerDash + RulerTextSpacing;
-            if (!_XGrid.ShowLabels)
-                yPadding = 5;
-
-            //Reflect Y padding only. Used by MapY()
-            _DataRectangle = new Rectangle(_AdditionalPadding.Left, _AdditionalPadding.Top, Width - _AdditionalPadding.Horizontal - 1, Height - _AdditionalPadding.Vertical - 1 - yPadding);
-
-            for (int i = 0; i < _YGridObj.Data.Length; i++)
+            using (Graphics gr = Graphics.FromHwnd(Handle))
             {
-                GridLine line = _YGridObj.Data[i];
-                double rawVal = line.RawValue;
-                if (_YGrid.TransformLabelValues && !_YGrid.ProportionalToTransformedScale)
-                    DoTransformY(ref rawVal);
-                string val = string.Format(_DefaultYFormat, rawVal);
-                if (FormatYValue != null)
-                    FormatYValue(this, line.RawValue, ref val);
-                line.Label = val;
-                Size labelSize = Size.Ceiling(gr.MeasureString(val, Font));
-                line.LabelSize = labelSize.Height;
-                maxLabelWidth = Math.Max(maxLabelWidth, labelSize.Width);
+                //Create list of grid points, screen coordinates will be assigned later
+                _YGridObj = _YGrid.CreateDimensionObjectTemplate(transformedBounds.MinY, transformedBounds.MaxY, nonTransformedBounds.MinY, nonTransformedBounds.MaxY, _DataRectangle.Height);
 
-                line.ScreenCoordinate = MapY(line.RawValue, !_YGridObj.Transformed);
-                if (i == 0)
-                    line.TextCoordinate = Math.Min(line.ScreenCoordinate - line.LabelSize / 2, _DataRectangle.Bottom - line.LabelSize);
-                else if (i == (_YGridObj.Data.Length - 1))
-                    line.TextCoordinate = Math.Max(line.ScreenCoordinate - line.LabelSize / 2, _DataRectangle.Top);
-                else
-                    line.TextCoordinate = line.ScreenCoordinate - line.LabelSize / 2;
+                /* Grid/labels computation algorithm:
+                 *  1. Compute fixed Y padding (font height)
+                 *  2. Determine Y labels, place them, compute X padding (max. Y label width)
+                 *  3. Determine X labels, place them
+                 *  4. Compute label visibility
+                 */
+
+                int maxLabelWidth = 0;
+                int yPadding = Size.Ceiling(gr.MeasureString("M", Font)).Height + BigRulerDash + RulerTextSpacing;
+                if (!_XGrid.ShowLabels)
+                    yPadding = 5;
+
+                //Reflect Y padding only. Used by MapY()
+                _DataRectangle = new Rectangle(_AdditionalPadding.Left, _AdditionalPadding.Top, Width - _AdditionalPadding.Horizontal - 1, Height - _AdditionalPadding.Vertical - 1 - yPadding);
+
+                for (int i = 0; i < _YGridObj.Data.Length; i++)
+                {
+                    GridLine line = _YGridObj.Data[i];
+                    double rawVal = line.RawValue;
+                    if (_YGrid.TransformLabelValues && !_YGrid.ProportionalToTransformedScale)
+                        DoTransformY(ref rawVal);
+                    string val = string.Format(_DefaultYFormat, rawVal);
+                    if (FormatYValue != null)
+                        FormatYValue(this, line.RawValue, ref val);
+                    line.Label = val;
+                    Size labelSize = Size.Ceiling(gr.MeasureString(val, Font));
+                    line.LabelSize = labelSize.Height;
+                    maxLabelWidth = Math.Max(maxLabelWidth, labelSize.Width);
+
+                    line.ScreenCoordinate = MapY(line.RawValue, !_YGridObj.Transformed);
+                    if (i == 0)
+                        line.TextCoordinate = Math.Min(line.ScreenCoordinate - line.LabelSize / 2, _DataRectangle.Bottom - line.LabelSize);
+                    else if (i == (_YGridObj.Data.Length - 1))
+                        line.TextCoordinate = Math.Max(line.ScreenCoordinate - line.LabelSize / 2, _DataRectangle.Top);
+                    else
+                        line.TextCoordinate = line.ScreenCoordinate - line.LabelSize / 2;
+                }
+
+                int xPadding = maxLabelWidth + BigRulerDash + RulerTextSpacing;
+                if (!_YGrid.ShowLabels)
+                    xPadding = 0;
+
+                //Reflect both X and Y padding
+                _DataRectangle = new Rectangle(_AdditionalPadding.Left + xPadding, _AdditionalPadding.Top, Width - _AdditionalPadding.Horizontal - 1 - xPadding, Height - _AdditionalPadding.Vertical - 1 - yPadding);
+
+                _XGridObj = _XGrid.CreateDimensionObjectTemplate(transformedBounds.MinX, transformedBounds.MaxX, nonTransformedBounds.MinX, nonTransformedBounds.MaxX, _DataRectangle.Width);
+
+                for (int i = 0; i < _XGridObj.Data.Length; i++)
+                {
+                    GridLine line = _XGridObj.Data[i];
+                    double rawVal = line.RawValue;
+                    if (_XGrid.TransformLabelValues && !_XGrid.ProportionalToTransformedScale)
+                        DoTransformX(ref rawVal);
+
+                    string val = string.Format(_DefaultXFormat, rawVal);
+                    if (FormatXValue != null)
+                        FormatXValue(this, line.RawValue, ref val);
+                    line.Label = val;
+                    line.LabelSize = Size.Ceiling(gr.MeasureString(val, Font)).Width;
+                    line.LabelVisible = true;
+
+                    line.ScreenCoordinate = MapX(line.RawValue, !_YGridObj.Transformed);
+                    if (i == 0)
+                        line.TextCoordinate = Math.Max(line.ScreenCoordinate - line.LabelSize / 2, _DataRectangle.Left);
+                    else if (i == (_XGridObj.Data.Length - 1))
+                        line.TextCoordinate = Math.Min(line.ScreenCoordinate - line.LabelSize / 2, _DataRectangle.Right - line.LabelSize);
+                    else
+                        line.TextCoordinate = line.ScreenCoordinate - line.LabelSize / 2;
+                }
+
+                _YGridObj.ComputeLabelVisibility(_YGrid.DistributeLabelsEvenly && _YGridObj.Transformed, true);
+                _XGridObj.ComputeLabelVisibility(_XGrid.DistributeLabelsEvenly && _XGridObj.Transformed, false);
+                Invalidate();
             }
-
-            int xPadding = maxLabelWidth + BigRulerDash + RulerTextSpacing;
-            if (!_YGrid.ShowLabels)
-                xPadding = 0;
-
-            //Reflect both X and Y padding
-            _DataRectangle = new Rectangle(_AdditionalPadding.Left + xPadding, _AdditionalPadding.Top, Width - _AdditionalPadding.Horizontal - 1 - xPadding, Height - _AdditionalPadding.Vertical - 1 - yPadding);
-
-            _XGridObj = _XGrid.CreateDimensionObjectTemplate(transformedBounds.MinX, transformedBounds.MaxX, nonTransformedBounds.MinX, nonTransformedBounds.MaxX, _DataRectangle.Width);
-
-            for (int i = 0; i < _XGridObj.Data.Length; i++)
-            {
-                GridLine line = _XGridObj.Data[i];
-                double rawVal = line.RawValue;
-                if (_XGrid.TransformLabelValues && !_XGrid.ProportionalToTransformedScale)
-                    DoTransformX(ref rawVal);
-
-                string val = string.Format(_DefaultXFormat, rawVal);
-                if (FormatXValue != null)
-                    FormatXValue(this, line.RawValue, ref val);
-                line.Label = val;
-                line.LabelSize = Size.Ceiling(gr.MeasureString(val, Font)).Width;
-                line.LabelVisible = true;
-
-                line.ScreenCoordinate = MapX(line.RawValue, !_YGridObj.Transformed);
-                if (i == 0)
-                    line.TextCoordinate = Math.Max(line.ScreenCoordinate - line.LabelSize / 2, _DataRectangle.Left);
-                else if (i == (_XGridObj.Data.Length - 1))
-                    line.TextCoordinate = Math.Min(line.ScreenCoordinate - line.LabelSize / 2, _DataRectangle.Right - line.LabelSize);
-                else
-                    line.TextCoordinate = line.ScreenCoordinate - line.LabelSize / 2;
-            }
-
-            _YGridObj.ComputeLabelVisibility(_YGrid.DistributeLabelsEvenly && _YGridObj.Transformed, true);
-            _XGridObj.ComputeLabelVisibility(_XGrid.DistributeLabelsEvenly && _XGridObj.Transformed, false);
-            Invalidate();
         }
 
         protected virtual void GetRawDataBounds(out GraphBounds nonTransformedBounds, out GraphBounds transformedBounds)
@@ -608,6 +630,8 @@ namespace SharpGraphLib
             base.OnResize(e);
             Invalidate();
         }
+
+        protected bool _SuppressYGridLabels;
 
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -645,7 +669,7 @@ namespace SharpGraphLib
                     {
                         if (_YGrid.ShowGridLines)
                             e.Graphics.DrawLine(yGridPen, _DataRectangle.Left, line.ScreenCoordinate, _DataRectangle.Right, line.ScreenCoordinate);
-                        if (_YGrid.ShowLabels)
+                        if (_YGrid.ShowLabels && !_SuppressYGridLabels)
                         {
                             if (line.LabelVisible)
                             {

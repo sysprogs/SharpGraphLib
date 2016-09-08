@@ -1,6 +1,8 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.24720.0
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpGraphTest", "SharpGraphTest.csproj", "{9EBCAF15-2B45-4ECC-A83D-0B570551C772}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpGraphLib", "..\SharpGraphLib\SharpGraphLib.csproj", "{AAEBE4D0-6572-46A8-B255-680AAEFCBBC8}"

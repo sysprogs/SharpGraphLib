@@ -21,10 +21,14 @@ namespace SharpGraphLib
             MaxY = maxY;
         }
 
+        public bool IsValid => !double.IsNaN(MinX) && !double.IsNaN(MaxX) && !double.IsNaN(MinY) && !double.IsNaN(MaxY);
+
         public static GraphBounds CreateInitial()
         {
             return new GraphBounds(double.MaxValue, double.MinValue, double.MaxValue, double.MinValue);
         }
+
+        public static readonly GraphBounds Invalid = new GraphBounds(double.NaN, double.NaN, double.NaN, double.NaN);
 
         public double DeltaX { get { return MaxX - MinX; } }
         public double DeltaY { get { return MaxY - MinY; } }

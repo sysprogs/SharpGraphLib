@@ -51,11 +51,14 @@ namespace SharpGraphLib
         LegendControl _Legend, _EmbeddedLegend;
         bool _EmbeddedLegendMoved = false;
 
+        bool _IndividualScaling;
+
+
         [Category("Appearance")]
         public bool EmbeddedLegend
         {
             get { return _EmbeddedLegend != null; }
-            set 
+            set
             {
                 if (value == (_EmbeddedLegend != null))
                     return;
@@ -119,7 +122,7 @@ namespace SharpGraphLib
         public SharpGraphLib.LegendControl Legend
         {
             get { return _Legend; }
-            set 
+            set
             {
                 if (_Legend != null)
                 {
@@ -141,9 +144,40 @@ namespace SharpGraphLib
             }
         }
 
+        public bool IndividualScaling
+        {
+            get
+            {
+                return _IndividualScaling;
+            }
+
+            set
+            {
+                _IndividualScaling = value;
+                UpdateScaling();
+            }
+        }
+
+        public DisplayedGraph ActiveGraph   //Used to determine the labels on the Y scale when using individual scaling
+        {
+            get
+            {
+                return _ActiveGraph;
+            }
+
+            set
+            {
+                _ActiveGraph = value;
+                if (_IndividualScaling)
+                    UpdateScaling();
+            }
+        }
+
+        DisplayedGraph _ActiveGraph;
+
         void _Legend_OnLabelGrayed(ILegendItem graph, bool grayed)
         {
-            foreach(DisplayedGraph gr in _Graphs)
+            foreach (DisplayedGraph gr in _Graphs)
                 if (gr.Hint == graph.Hint)
                     gr.Hidden = grayed;
         }
@@ -154,9 +188,9 @@ namespace SharpGraphLib
         {
             _HighlightedGraph = null;
             if (graph != null)
-            foreach (DisplayedGraph gr in _Graphs)
-                if (gr.Hint == graph.Hint)
-                    _HighlightedGraph = gr;
+                foreach (DisplayedGraph gr in _Graphs)
+                    if (gr.Hint == graph.Hint)
+                        _HighlightedGraph = gr;
             Invalidate();
         }
 
@@ -180,6 +214,7 @@ namespace SharpGraphLib
             PointMarkingStyle _DefaultPointMarkingStyle = PointMarkingStyle.None;
 
             PointMarkingStyle[] _PointMarkerOverride;
+            public GraphBounds ForcedBounds;
 
             public class DisplayedPoint
             {
@@ -240,7 +275,7 @@ namespace SharpGraphLib
                 get { return _Hint; }
                 set { _Hint = value; _Viewer.UpdateScaling(); }
             }
-            
+
             public Color Color
             {
                 get { return _Color; }
@@ -255,7 +290,7 @@ namespace SharpGraphLib
 
             public Graph Graph { get { return _Graph; } }
             #endregion
-            
+
 
             internal DisplayedGraph(GraphViewer viewer, Graph graph, Color color, int lineWidth, string hint)
             {
@@ -275,7 +310,7 @@ namespace SharpGraphLib
                     int idx = 0;
 
                     foreach (KeyValuePair<double, double> kv in _Graph.SortedPoints)
-                        points[idx++] = new Point(_Viewer.MapX(kv.Key, true), _Viewer.MapY(kv.Value, true));
+                        points[idx++] = new Point(_Viewer.MapX(kv.Key, true), _Viewer.MapY(kv.Value, true, ForcedBounds));
 
                     path.AddLines(points);
                 }
@@ -292,14 +327,14 @@ namespace SharpGraphLib
                 int bestPoint = 0;
                 double bestDist = double.MaxValue;
                 double maxDistX = _Viewer.UnmapWidth(maxRadius), maxDistY = _Viewer.UnmapHeight(maxRadius);
-                
+
                 for (int i = 0; i < _Graph.SortedPoints.Count; i++)
                 {
                     KeyValuePair<double, double> kv = _Graph.GetPointByIndex(i);
                     double distX = (X - kv.Key) / maxDistX;
                     double distY = (Y - kv.Value) / maxDistY;
                     double dist = distX * distX + distY * distY;
-                    
+
                     if (dist < bestDist)
                     {
                         bestPoint = i;
@@ -333,7 +368,7 @@ namespace SharpGraphLib
                         return kv.Value;
                     if (i == 0)
                         return double.NaN;   //TODO: support extrapolation
-                    
+
                     KeyValuePair<double, double> kv0 = _Graph.GetPointByIndex(i - 1);
 
                     double dx = kv.Key - kv0.Key;
@@ -360,6 +395,18 @@ namespace SharpGraphLib
                 if ((_PointMarkerOverride == null) || (_PointMarkerOverride.Length <= pointIdx))
                     return _DefaultPointMarkingStyle;
                 return _PointMarkerOverride[pointIdx];
+            }
+
+            internal void UpdateBounds(ref GraphBounds bounds)
+            {
+                foreach (KeyValuePair<double, double> kv in Graph.SortedPoints)
+                {
+                    double x = kv.Key, y = kv.Value;
+                    bounds.MinX = Math.Min(bounds.MinX, x);
+                    bounds.MaxX = Math.Max(bounds.MaxX, x);
+                    bounds.MinY = Math.Min(bounds.MinY, y);
+                    bounds.MaxY = Math.Max(bounds.MaxY, y);
+                }
             }
         }
 
@@ -393,7 +440,7 @@ namespace SharpGraphLib
             double _X, _Y;
             DisplayedGraph _Graph;
             int _NearestRefPoint;
-            
+
             public double X
             {
                 get { return _X; }
@@ -423,10 +470,18 @@ namespace SharpGraphLib
             }
         }
 
-        public int MapAndSquareDistance(double X1, double X2, double Y1, double Y2)
+        public int MapAndSquareDistance(double X1, double X2, double yFromMouse, double yFromGraph, DisplayedGraph gr)
         {
-            int dX = MapX(X1, true) - MapX(X2, true), dY = MapY(Y1, true) - MapY(Y2, true);
-            return dX * dX + dY * dY;
+            if (gr.ForcedBounds.IsValid)
+            {
+                int dX = MapX(X1, true) - MapX(X2, true), dY = MapY(yFromMouse, true) - MapY(yFromGraph, true, gr.ForcedBounds);
+                return dX * dX + dY * dY;
+            }
+            else
+            {
+                int dX = MapX(X1, true) - MapX(X2, true), dY = MapY(yFromMouse, true) - MapY(yFromGraph, true);
+                return dX * dX + dY * dY;
+            }
         }
 
         public InterpolatedPoint FindNearestGraphPoint(double x, double y, bool ignoreHiddenGraphs, out int distanceSquare)
@@ -443,8 +498,9 @@ namespace SharpGraphLib
                 double yFound = gr.GetLinearlyInterpolatedY(x, out nearestRefPoint);
                 if (double.IsNaN(yFound))
                     continue;
+
                 KeyValuePair<double, double> kv = gr.Graph.GetPointByIndex(nearestRefPoint);
-                int thisDistanceSquare = MapAndSquareDistance(x, x, y, yFound);
+                int thisDistanceSquare = MapAndSquareDistance(x, x, y, yFound, gr);
                 if (thisDistanceSquare < bestDistanceSquare)
                 {
                     bestDistanceSquare = thisDistanceSquare;
@@ -513,10 +569,16 @@ namespace SharpGraphLib
                 base.GetRawDataBounds(out nonTransformedBounds, out transformedBounds);
                 return;
             }
+
+            _SuppressYGridLabels = IndividualScaling && ActiveGraph == null;
+
             nonTransformedBounds = GraphBounds.CreateInitial();
             transformedBounds = GraphBounds.CreateInitial();
             foreach (DisplayedGraph gr in _Graphs)
             {
+                if (IndividualScaling && ActiveGraph != null && ActiveGraph.ForcedBounds.IsValid && gr != ActiveGraph)
+                    continue;
+
                 foreach (KeyValuePair<double, double> kv in gr.Graph.SortedPoints)
                 {
                     double x = kv.Key;
@@ -565,11 +627,11 @@ namespace SharpGraphLib
                         continue;
 
                     Pen pointMarkerPen = Pens.Black;
-                    int x = MapX(kv.Key, true), y = MapY(kv.Value, true);
+                    int x = MapX(kv.Key, true), y = MapY(kv.Value, true, gr.ForcedBounds);
                     switch (style)
                     {
                         case DisplayedGraph.PointMarkingStyle.Square:
-                            e.Graphics.DrawRectangle(pointMarkerPen, x - kPointMarkerSize / 2, y - kPointMarkerSize / 2, kPointMarkerSize, kPointMarkerSize); 
+                            e.Graphics.DrawRectangle(pointMarkerPen, x - kPointMarkerSize / 2, y - kPointMarkerSize / 2, kPointMarkerSize, kPointMarkerSize);
                             break;
                         case DisplayedGraph.PointMarkingStyle.Circle:
                             e.Graphics.DrawEllipse(pointMarkerPen, x - kPointMarkerSize / 2, y - kPointMarkerSize / 2, kPointMarkerSize, kPointMarkerSize);
@@ -594,6 +656,20 @@ namespace SharpGraphLib
                     _EmbeddedLegend.Top = DataRectangle.Bottom - _EmbeddedLegend.Height - 10;
                 }
             }
+        }
+
+        public override void UpdateScaling()
+        {
+            base.UpdateScaling();
+            foreach (var gr in _Graphs)
+                if (_IndividualScaling)
+                {
+                    GraphBounds bounds = GraphBounds.CreateInitial();
+                    gr.UpdateBounds(ref bounds);
+                    gr.ForcedBounds = bounds;
+                }
+                else
+                    gr.ForcedBounds = GraphBounds.Invalid;
         }
 
     }

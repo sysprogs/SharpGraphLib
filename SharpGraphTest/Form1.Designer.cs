@@ -58,6 +58,7 @@
             this.graphColorProvider1 = new SharpGraphLib.GraphColorProvider(this.components);
             this.checkBox6 = new System.Windows.Forms.CheckBox();
             this.checkBox7 = new System.Windows.Forms.CheckBox();
+            this.checkBox8 = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDown1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDown2)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDown3)).BeginInit();
@@ -349,13 +350,13 @@
             this.checkBox5.TabIndex = 10;
             this.checkBox5.Text = "Embedded legend";
             this.checkBox5.UseVisualStyleBackColor = true;
-            this.checkBox5.Click += new System.EventHandler(this.checkBox5_CheckedChanged);
             this.checkBox5.CheckedChanged += new System.EventHandler(this.checkBox5_CheckedChanged);
+            this.checkBox5.Click += new System.EventHandler(this.checkBox5_CheckedChanged);
             // 
             // legendControl1
             // 
-            this.legendControl1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.legendControl1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.legendControl1.AutoScroll = true;
             this.legendControl1.ContextMenuStrip = this.contextMenuStrip1;
             this.legendControl1.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -369,14 +370,15 @@
             // graphViewer1
             // 
             this.graphViewer1.AdditionalPadding = new System.Windows.Forms.Padding(0);
-            this.graphViewer1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-                        | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.graphViewer1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.graphViewer1.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
             this.graphViewer1.DefaultXFormat = "{0:f2}";
             this.graphViewer1.DefaultYFormat = "{0:f2}";
             this.graphViewer1.EmbeddedLegend = false;
             this.graphViewer1.ForceCustomBounds = false;
+            this.graphViewer1.IndividualScaling = false;
             this.graphViewer1.Legend = this.legendControl1;
             this.graphViewer1.Location = new System.Drawing.Point(12, 12);
             this.graphViewer1.Name = "graphViewer1";
@@ -392,11 +394,11 @@
             gridSettings2.ShowLabels = true;
             gridSettings2.TransformLabelValues = false;
             this.graphViewer1.YGrid = gridSettings2;
-            this.graphViewer1.MouseLeave += new System.EventHandler(this.graphViewer1_MouseLeave);
             this.graphViewer1.MouseMove += new SharpGraphLib.GraphMouseEventHandler(this.graphViewer1_MouseMove);
-            this.graphViewer1.MouseUp += new SharpGraphLib.GraphMouseEventHandler(this.graphViewer1_MouseUp);
             this.graphViewer1.MouseDown += new SharpGraphLib.GraphMouseEventHandler(this.graphViewer1_MouseDown);
+            this.graphViewer1.MouseUp += new SharpGraphLib.GraphMouseEventHandler(this.graphViewer1_MouseUp);
             this.graphViewer1.TransformY += new SharpGraphLib.ScaledViewerBase.ValueTransformation(this.graphViewer1_TransformY);
+            this.graphViewer1.MouseLeave += new System.EventHandler(this.graphViewer1_MouseLeave);
             // 
             // checkBox6
             // 
@@ -423,6 +425,18 @@
             this.checkBox7.Text = "Show reference points";
             this.checkBox7.UseVisualStyleBackColor = true;
             // 
+            // checkBox8
+            // 
+            this.checkBox8.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.checkBox8.AutoSize = true;
+            this.checkBox8.Location = new System.Drawing.Point(571, 395);
+            this.checkBox8.Name = "checkBox8";
+            this.checkBox8.Size = new System.Drawing.Size(107, 17);
+            this.checkBox8.TabIndex = 10;
+            this.checkBox8.Text = "Scale individually";
+            this.checkBox8.UseVisualStyleBackColor = true;
+            this.checkBox8.CheckedChanged += new System.EventHandler(this.checkBox8_CheckedChanged);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -430,6 +444,7 @@
             this.ClientSize = new System.Drawing.Size(864, 471);
             this.Controls.Add(this.checkBox1);
             this.Controls.Add(this.checkBox2);
+            this.Controls.Add(this.checkBox8);
             this.Controls.Add(this.checkBox3);
             this.Controls.Add(this.comboBox2);
             this.Controls.Add(this.checkBox7);
@@ -491,6 +506,7 @@
         private System.Windows.Forms.CheckBox checkBox5;
         private System.Windows.Forms.CheckBox checkBox6;
         private System.Windows.Forms.CheckBox checkBox7;
+        private System.Windows.Forms.CheckBox checkBox8;
     }
 }
 
