@@ -180,7 +180,7 @@ namespace SharpGraphLib
                 return finalSize;
             }
         }
-        
+
         public class PreviewRect
         {
             double _X1, _Y1, _X2, _Y2;
@@ -271,6 +271,55 @@ namespace SharpGraphLib
 
         }
 
+        public class RangeTracker
+        {
+            double _Left, _Right;
+            InteractiveGraphViewer _Viewer;
+            bool _Visible;
+            Color _LineColor = Color.DarkGoldenrod, _FillColor = Color.FromArgb(100, Color.DarkGoldenrod);
+            int _LineWidth = 1;
+
+            #region Properties
+            public bool Visible
+            {
+                get { return _Visible; }
+                set { _Visible = value; _Viewer.Invalidate(); }
+            }
+            public System.Drawing.Color FillColor
+            {
+                get { return _FillColor; }
+                set { _FillColor = value; _Viewer.Invalidate(); }
+            }
+            public System.Drawing.Color LineColor
+            {
+                get { return _LineColor; }
+                set { _LineColor = value; _Viewer.Invalidate(); }
+            }
+            public int LineWidth
+            {
+                get { return _LineWidth; }
+                set { _LineWidth = value; _Viewer.Invalidate(); }
+            }
+
+            public double Left
+            {
+                get { return _Left; }
+                set { _Left = value; _Viewer.Invalidate(); }
+            }
+
+            public double Right
+            {
+                get { return _Right; }
+                set { _Right = value; _Viewer.Invalidate(); }
+            }
+            #endregion
+
+            internal RangeTracker(InteractiveGraphViewer viewer)
+            {
+                _Viewer = viewer;
+            }
+        }
+
         public class DistanceMeasurer
         {
             public const string CapitalDelta = "\u0394";
@@ -327,18 +376,19 @@ namespace SharpGraphLib
 
         PreviewRect _PreviewRectangle;
         DistanceMeasurer _DistanceLine;
-        
+
         public DistanceMeasurer DistanceLine
         {
             set { _DistanceLine = value; }
         }
-        
+
         public PreviewRect PreviewRectangle
         {
             get { return _PreviewRectangle; }
         }
 
         List<Tracker> _Trackers = new List<Tracker>();
+        List<RangeTracker> _RangeTrackers = new List<RangeTracker>();
         List<FloatingHint> _Hints = new List<FloatingHint>();
 
         public InteractiveGraphViewer()
@@ -399,6 +449,14 @@ namespace SharpGraphLib
             return tracker;
         }
 
+        public RangeTracker CreateRangeTracker(double left, double right, bool visible = true)
+        {
+            var tracker = new RangeTracker(this) { Left = left, Right = right, Visible = visible };
+            _RangeTrackers.Add(tracker);
+            Invalidate();
+            return tracker;
+        }
+
         public Tracker CreateTracker(Color color)
         {
             Tracker tracker = new Tracker(this) { LineColor = color, Hidden = true };
@@ -415,7 +473,7 @@ namespace SharpGraphLib
 
         public FloatingHint CreateFloatingHint()
         {
-            FloatingHint hint = new FloatingHint(this) { Hidden = true};
+            FloatingHint hint = new FloatingHint(this) { Hidden = true };
             _Hints.Add(hint);
             return hint;
         }
@@ -425,6 +483,20 @@ namespace SharpGraphLib
             try
             {
                 base.OnPaint(e);
+                foreach (RangeTracker rtrk in _RangeTrackers)
+                {
+                    if (!rtrk.Visible)
+                        continue;
+                    using (Pen trackerPen = new Pen(rtrk.LineColor, rtrk.LineWidth))
+                    using (SolidBrush trackerBrush = new SolidBrush(rtrk.FillColor))
+                    {
+                        int left = MapX(rtrk.Left, true), right = MapX(rtrk.Right, true);
+                        e.Graphics.FillRectangle(trackerBrush, left, DataRectangle.Top, right - left, DataRectangle.Height);
+                        e.Graphics.DrawLine(trackerPen, left, DataRectangle.Top, left, DataRectangle.Bottom);
+                        e.Graphics.DrawLine(trackerPen, right, DataRectangle.Top, right, DataRectangle.Bottom);
+                    }
+                }
+
                 foreach (Tracker trk in _Trackers)
                 {
                     if (trk.Hidden)
