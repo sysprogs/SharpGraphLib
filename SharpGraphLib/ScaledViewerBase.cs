@@ -19,7 +19,7 @@ namespace SharpGraphLib
         Padding _AdditionalPadding;
         bool _AlwaysShowZeroX, _AlwaysShowZeroY, _CenterX, _CenterY;
         bool _AntiAlias = true;
-        
+
         const int kDistanceForNonFittingPoints = 10;
 
         GridSettings _XGrid = new GridSettings();
@@ -213,7 +213,7 @@ namespace SharpGraphLib
             {
                 FixedSpacing,
                 MaxLinesPerGraph,
-                MinPixelsBetweenLines
+                MinPixelsBetweenLines,
             }
 
             const double kDefaultSpacing = 20;
@@ -369,6 +369,11 @@ namespace SharpGraphLib
             public string Label;
             public int LabelSize;
             public bool LabelVisible;
+
+            public override string ToString()
+            {
+                return RawValue.ToString();
+            }
         }
 
         internal class GridDimension
@@ -488,6 +493,45 @@ namespace SharpGraphLib
             get { return _DataRectangle; }
         }
 
+        public enum GridDimensionKind
+        {
+            Time,
+            Value,
+        }
+
+        public struct GridLineDefinition
+        {
+            public double Value;
+            public string ExplicitLabel;
+
+            public override string ToString()
+            {
+                return Value.ToString();
+            }
+        }
+
+        public class ComputeGridLinesEventArgs : EventArgs
+        {
+            public readonly GridDimensionKind Dimension;
+            public readonly GridSettings GridSettings;
+            public readonly int GraphAreaSizeInPixels;
+
+            public double MinValue, MaxValue;       //Editable by the event handler
+            public GridLineDefinition[] GridLines;  //Initially null. Should be set by the event handler.
+
+            public ComputeGridLinesEventArgs(GridDimensionKind dimension, GridSettings gridSettings, double minValue, double maxValue, int graphAreaSizeInPixels)
+            {
+                Dimension = dimension;
+                GridSettings = gridSettings;
+                MinValue = minValue;
+                MaxValue = maxValue;
+                GraphAreaSizeInPixels = graphAreaSizeInPixels;
+            }
+        }
+
+        [Category("Axes")]
+        public event EventHandler<ComputeGridLinesEventArgs> ComputeGridLines;
+
         public virtual void UpdateScaling()
         {
             GraphBounds nonTransformedBounds;
@@ -517,6 +561,20 @@ namespace SharpGraphLib
             }
 
             _TransformedBounds = transformedBounds;
+            _DataRectangle = new Rectangle(_AdditionalPadding.Left, _AdditionalPadding.Top, Width - _AdditionalPadding.Horizontal - 1, Height - _AdditionalPadding.Vertical - 1);
+
+            ComputeGridLinesEventArgs yGridArgs = null;
+            if (ComputeGridLines != null)
+            {
+                yGridArgs = new ComputeGridLinesEventArgs(GridDimensionKind.Value, _YGrid, _TransformedBounds.MinY, _TransformedBounds.MaxY, _DataRectangle.Height);
+                ComputeGridLines(this, yGridArgs);
+
+                if (yGridArgs.GridLines != null)
+                {
+                    _TransformedBounds.MinY = yGridArgs.MinValue;
+                    _TransformedBounds.MaxY = yGridArgs.MaxValue;
+                }
+            }
 
             if (_ForceCustomBounds)
             {
@@ -535,39 +593,56 @@ namespace SharpGraphLib
                 nonTransformedBounds = new GraphBounds(minX, maxX, minY, maxY);
             }
 
-            _DataRectangle = new Rectangle(_AdditionalPadding.Left, _AdditionalPadding.Top, Width - _AdditionalPadding.Horizontal - 1, Height - _AdditionalPadding.Vertical - 1);
 
             using (Graphics gr = Graphics.FromHwnd(Handle))
             {
-                //Create list of grid points, screen coordinates will be assigned later
-                _YGridObj = _YGrid.CreateDimensionObjectTemplate(transformedBounds.MinY, transformedBounds.MaxY, nonTransformedBounds.MinY, nonTransformedBounds.MaxY, _DataRectangle.Height);
-
-                /* Grid/labels computation algorithm:
-                 *  1. Compute fixed Y padding (font height)
-                 *  2. Determine Y labels, place them, compute X padding (max. Y label width)
-                 *  3. Determine X labels, place them
-                 *  4. Compute label visibility
-                 */
-
-                int maxLabelWidth = 0;
                 int yPadding = Size.Ceiling(gr.MeasureString("M", Font)).Height + BigRulerDash + RulerTextSpacing;
                 if (!_XGrid.ShowLabels)
                     yPadding = 5;
 
+                if (yGridArgs?.GridLines != null)
+                {
+                    _YGridObj = new GridDimension
+                    {
+                        Transformed = true,
+                        Data = new GridLine[yGridArgs.GridLines.Length]
+                    };
+
+                    for (int i = 0; i < yGridArgs.GridLines.Length; i++)
+                        _YGridObj.Data[i] = new GridLine { RawValue = yGridArgs.GridLines[i].Value, Label = yGridArgs.GridLines[i].ExplicitLabel };
+                }
+                else
+                {
+                    //Create list of grid points, screen coordinates will be assigned later
+                    _YGridObj = _YGrid.CreateDimensionObjectTemplate(transformedBounds.MinY, transformedBounds.MaxY, nonTransformedBounds.MinY, nonTransformedBounds.MaxY, _DataRectangle.Height);
+                }
+
+                /* Grid/labels computation algorithm:
+                *  1. Compute fixed Y padding (font height)
+                *  2. Determine Y labels, place them, compute X padding (max. Y label width)
+                *  3. Determine X labels, place them
+                *  4. Compute label visibility
+                */
+
                 //Reflect Y padding only. Used by MapY()
                 _DataRectangle = new Rectangle(_AdditionalPadding.Left, _AdditionalPadding.Top, Width - _AdditionalPadding.Horizontal - 1, Height - _AdditionalPadding.Vertical - 1 - yPadding);
 
+                int maxLabelWidth = 0;
                 for (int i = 0; i < _YGridObj.Data.Length; i++)
                 {
                     GridLine line = _YGridObj.Data[i];
                     double rawVal = line.RawValue;
                     if (_YGrid.TransformLabelValues && !_YGrid.ProportionalToTransformedScale)
                         DoTransformY(ref rawVal);
-                    string val = string.Format(_DefaultYFormat, rawVal);
-                    if (FormatYValue != null)
-                        FormatYValue(this, line.RawValue, ref val);
-                    line.Label = val;
-                    Size labelSize = Size.Ceiling(gr.MeasureString(val, Font));
+
+                    if (line.Label == null)
+                    {
+                        string val = string.Format(_DefaultYFormat, rawVal);
+                        FormatYValue?.Invoke(this, line.RawValue, ref val);
+                        line.Label = val;
+                    }
+
+                    Size labelSize = Size.Ceiling(gr.MeasureString(line.Label, Font));
                     line.LabelSize = labelSize.Height;
                     maxLabelWidth = Math.Max(maxLabelWidth, labelSize.Width);
 
