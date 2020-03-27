@@ -345,7 +345,7 @@ namespace SharpGraphLib
                     gridSpacing = Math.Ceiling(gridSpacing / _SpacingDivider) * _SpacingDivider;
                 }
 
-                if (gridSpacing == 0)
+                if (gridSpacing <= 0)
                     gridSpacing = 1;
 
                 List<GridLine> lines = new List<GridLine>();
