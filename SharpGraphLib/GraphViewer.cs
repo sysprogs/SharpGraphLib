@@ -626,6 +626,8 @@ namespace SharpGraphLib
         {
             base.OnPaint(e);
             e.Graphics.SetClip(DataRectangle);
+            Pen pointMarkerPen = null;
+
             foreach (DisplayedGraph gr in _Graphs)
             {
                 if (gr.Hidden || gr.HiddenFromLegend)
@@ -644,7 +646,8 @@ namespace SharpGraphLib
                     if (style == DisplayedGraph.PointMarkingStyle.None)
                         continue;
 
-                    Pen pointMarkerPen = Pens.Black;
+                    if (pointMarkerPen == null)
+                        pointMarkerPen = new Pen(new SolidBrush(ForeColor));
                     int x = MapX(kv.Key, true), y = MapY(kv.Value, true, gr.ForcedBounds);
                     switch (style)
                     {
