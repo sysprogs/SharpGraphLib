@@ -53,6 +53,11 @@ namespace SharpGraphLib
 
         bool _IndividualScaling;
 
+        protected virtual void ApplyEmbeddedLegendStyle(LegendControl legend)
+        {
+
+        }
+
 
         [Category("Appearance")]
         public bool EmbeddedLegend
@@ -77,6 +82,7 @@ namespace SharpGraphLib
                     _EmbeddedLegend.OnLabelGrayed += new LegendControl.HandleLabelGrayed(_Legend_OnLabelGrayed);
                     _EmbeddedLegend.MouseMove += new MouseEventHandler(_EmbeddedLegend_MouseMove);
                     _EmbeddedLegend.MouseDown += new MouseEventHandler(_EmbeddedLegend_MouseDown);
+                    ApplyEmbeddedLegendStyle(_EmbeddedLegend);
                     UpdateScaling();
                     UpdateLegend();
                 }
@@ -210,7 +216,7 @@ namespace SharpGraphLib
             Color _Color;
             string _Hint;
             int _LineWidth;
-            bool _Hidden;
+            bool _Hidden, _HiddenFromLegend;
             PointMarkingStyle _DefaultPointMarkingStyle = PointMarkingStyle.None;
 
             PointMarkingStyle[] _PointMarkerOverride;
@@ -286,6 +292,12 @@ namespace SharpGraphLib
             {
                 get { return _Hidden; }
                 set { _Hidden = value; _Viewer.Invalidate(); }
+            }
+
+            public bool HiddenFromLegend
+            {
+                get { return _HiddenFromLegend; }
+                set { _HiddenFromLegend = value; _Viewer.OnGraphHiddenChanged(this); }
             }
 
             public Graph Graph { get { return _Graph; } }
@@ -410,6 +422,12 @@ namespace SharpGraphLib
             }
         }
 
+        void OnGraphHiddenChanged(DisplayedGraph graph)
+        {
+            Invalidate();
+            UpdateLegend();
+        }
+
         public void ResetGraphs()
         {
             _Graphs.Clear();
@@ -491,7 +509,7 @@ namespace SharpGraphLib
 
             foreach (DisplayedGraph gr in _Graphs)
             {
-                if (ignoreHiddenGraphs && gr.Hidden)
+                if (ignoreHiddenGraphs && (gr.Hidden || gr.HiddenFromLegend))
                     continue;
 
                 int nearestRefPoint;
@@ -518,7 +536,7 @@ namespace SharpGraphLib
 
             foreach (DisplayedGraph gr in _Graphs)
             {
-                if (ignoreHiddenGraphs && gr.Hidden)
+                if (ignoreHiddenGraphs && (gr.Hidden || gr.HiddenFromLegend))
                     continue;
 
                 int nearestRefPoint;
@@ -543,7 +561,7 @@ namespace SharpGraphLib
 
             foreach (DisplayedGraph gr in _Graphs)
             {
-                if (ignoreHiddenGraphs && gr.Hidden)
+                if (ignoreHiddenGraphs && (gr.Hidden || gr.HiddenFromLegend))
                     continue;
 
                 int nearestRefPoint;
@@ -610,7 +628,7 @@ namespace SharpGraphLib
             e.Graphics.SetClip(DataRectangle);
             foreach (DisplayedGraph gr in _Graphs)
             {
-                if (gr.Hidden)
+                if (gr.Hidden || gr.HiddenFromLegend)
                     continue;
                 int lineWidth = gr.LineWidth;
                 if (_HighlightedGraph == gr)

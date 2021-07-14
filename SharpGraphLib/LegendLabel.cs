@@ -72,7 +72,7 @@ namespace SharpGraphLib
             {
                 e.Graphics.FillRectangle(new SolidBrush(_SquareColor), x, y, dimension, dimension);
                 e.Graphics.DrawRectangle(Pens.Black, x, y, dimension, dimension);
-                textBrush = Brushes.Black;
+                textBrush = new SolidBrush(ForeColor);
             }
 
             StringFormat fmt = new StringFormat();

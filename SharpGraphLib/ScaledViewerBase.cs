@@ -466,6 +466,7 @@ namespace SharpGraphLib
             ForceCustomBounds = true;
         }
 
+        protected GraphBounds NormalTransformedBounds => _TransformedBounds;
         protected GraphBounds TransformedBounds
         {
             get

@@ -92,7 +92,10 @@ namespace SharpGraphLib
 
                 foreach (ILegendItem gr in Items)
                 {
-                    LegendLabel lbl = new LegendLabel();
+                    if (gr.HiddenFromLegend)
+                        continue;
+
+                    LegendLabel lbl = new LegendLabel { ForeColor = ForeColor };
                     lbl.Parent = this;
                     lbl.SquareColor = gr.Color;
                     lbl.Text = gr.Hint;

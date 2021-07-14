@@ -9,6 +9,7 @@ namespace SharpGraphLib
     {
         Color Color { get; }
         bool Hidden { get; }
+        bool HiddenFromLegend { get; }
         string Hint { get; }
     }
 
