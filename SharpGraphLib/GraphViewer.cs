@@ -592,6 +592,8 @@ namespace SharpGraphLib
 
             nonTransformedBounds = GraphBounds.CreateInitial();
             transformedBounds = GraphBounds.CreateInitial();
+            int pointsHandled = 0;
+
             foreach (DisplayedGraph gr in _Graphs)
             {
                 if (IndividualScaling && ActiveGraph != null && ActiveGraph.ForcedBounds.IsValid && gr != ActiveGraph)
@@ -617,9 +619,14 @@ namespace SharpGraphLib
                         transformedBounds.MinY = Math.Min(transformedBounds.MinY, y);
                         transformedBounds.MaxY = Math.Max(transformedBounds.MaxY, y);
                     }
+
+                    pointsHandled++;
                 }
 
             }
+
+            if (pointsHandled == 0)
+                base.GetRawDataBounds(out nonTransformedBounds, out transformedBounds);
         }
 
         protected override void OnPaint(PaintEventArgs e)

@@ -715,13 +715,11 @@ namespace SharpGraphLib
                 e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
             base.OnPaint(e);
 
-            using (Pen borderPen = new Pen(this.ForeColor))
+            using (Pen borderPen = new Pen(ForeColor))
             using (Brush coordinateLabelBrush = new SolidBrush(this.ForeColor))
             using (Pen xGridPen = _XGrid.CreatePen())
             using (Pen yGridPen = _YGrid.CreatePen())
             {
-                e.Graphics.DrawRectangle(borderPen, _DataRectangle);
-
                 int textHeight = Size.Ceiling(e.Graphics.MeasureString("M", Font)).Height;
                 if (_XGridObj != null)
                     foreach (GridLine line in _XGridObj.Data)
@@ -756,6 +754,8 @@ namespace SharpGraphLib
                                 e.Graphics.DrawLine(borderPen, _DataRectangle.Left - SmallRulerDash, line.ScreenCoordinate, _DataRectangle.Left - 2, line.ScreenCoordinate);
                         }
                     }
+
+                e.Graphics.DrawRectangle(borderPen, _DataRectangle);
             }
         }
 
