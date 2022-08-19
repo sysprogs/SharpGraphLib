@@ -20,7 +20,7 @@ namespace SharpGraphLib
         bool _AlwaysShowZeroX, _AlwaysShowZeroY, _CenterX, _CenterY;
         bool _AntiAlias = true;
 
-        const int kDistanceForNonFittingPoints = 10;
+        const int kDistanceForNonFittingPoints = 10000;
 
         GridSettings _XGrid = new GridSettings();
         GridSettings _YGrid = new GridSettings();
@@ -108,27 +108,8 @@ namespace SharpGraphLib
         public int MapX(double transformedValue)
         {
             int val = (int)Math.Round((transformedValue - TransformedBounds.MinX) * _DataRectangle.Width / TransformedBounds.DeltaX);
-            if (val < 0)
-                val = -kDistanceForNonFittingPoints;
-            if (val > _DataRectangle.Right)
-                val = _DataRectangle.Right + kDistanceForNonFittingPoints;
+            FitValue(ref val, _DataRectangle.Left - kDistanceForNonFittingPoints, _DataRectangle.Right + kDistanceForNonFittingPoints);
             return _DataRectangle.Left + val;
-        }
-
-        public int[] MapX(double[] transformedValues)
-        {
-            var bounds = TransformedBounds;
-            int[] result = new int[transformedValues.Length];
-            for (int i = 0; i < transformedValues.Length; i++)
-            {
-                int val = (int)Math.Round((transformedValues[i] - bounds.MinX) * _DataRectangle.Width / bounds.DeltaX);
-                if (val < 0)
-                    val = -kDistanceForNonFittingPoints;
-                if (val > _DataRectangle.Right)
-                    val = _DataRectangle.Right + kDistanceForNonFittingPoints;
-                result[i] = _DataRectangle.Left + val;
-            }
-            return result;
         }
 
         public int MapWidth(double transformedValue)
@@ -144,12 +125,63 @@ namespace SharpGraphLib
         public int MapY(double transformedValue)
         {
             int val = (int)Math.Round(((transformedValue - TransformedBounds.MinY) * _DataRectangle.Height) / TransformedBounds.DeltaY);
-            if (val > _DataRectangle.Bottom)
-                val = _DataRectangle.Bottom + kDistanceForNonFittingPoints;
-            if (val < 0)
-                val = -kDistanceForNonFittingPoints;
+            FitValue(ref val, _DataRectangle.Top - kDistanceForNonFittingPoints, _DataRectangle.Bottom + kDistanceForNonFittingPoints);
             return _DataRectangle.Bottom - val;
         }
+
+        protected struct GraphLocation
+        {
+            public double X, Y;
+
+            public GraphLocation(double x, double y)
+            {
+                X = x;
+                Y = y;
+            }
+        }
+
+        protected struct ScreenLocation
+        {
+            public readonly int X, Y;
+
+            public ScreenLocation(int x, int y)
+            {
+                X = x;
+                Y = y;
+            }
+        }
+
+        static void FitValue(ref int value, int min, int max)
+        {
+            if (value < min)
+                value = min;
+            if (value > max)
+                value = max;
+        }
+
+        protected ScreenLocation[] MapCoordinates(GraphLocation[] transformedValues, GraphBounds fixedBounds, Rectangle fixedRect = default)
+        {
+            var bounds = fixedBounds.IsValid ? fixedBounds : TransformedBounds;
+            var dataRect = fixedRect.Height > 0 ? fixedRect : _DataRectangle;
+
+            int minX = dataRect.Left - kDistanceForNonFittingPoints, maxX = dataRect.Right + kDistanceForNonFittingPoints;
+            int minY = dataRect.Top - kDistanceForNonFittingPoints, maxY = dataRect.Bottom + kDistanceForNonFittingPoints;
+
+            ScreenLocation[] result = new ScreenLocation[transformedValues.Length];
+            for (int i = 0; i < transformedValues.Length; i++)
+            {
+                int x = (int)Math.Round((transformedValues[i].X - bounds.MinX) * dataRect.Width / bounds.DeltaX);
+                FitValue(ref x, minX, maxX);
+
+                int y = (int)Math.Round(((transformedValues[i].Y - bounds.MinY) * dataRect.Height) / bounds.DeltaY);
+                FitValue(ref y, minY, maxY);
+
+                result[i] = new ScreenLocation(_DataRectangle.Left + x, dataRect.Bottom - y);
+            }
+
+            return result;
+        }
+
 
         public int[] MapY(double[] transformedValues, GraphBounds fixedBounds, Rectangle fixedRect = default)
         {
@@ -177,10 +209,7 @@ namespace SharpGraphLib
             var dataRect = fixedRect.Height > 0 ? fixedRect : _DataRectangle;
 
             int val = (int)Math.Round(((transformedValue - fixedBounds.MinY) * dataRect.Height) / fixedBounds.DeltaY);
-            if (val > dataRect.Bottom)
-                val = dataRect.Bottom + kDistanceForNonFittingPoints;
-            if (val < 0)
-                val = -kDistanceForNonFittingPoints;
+            FitValue(ref val, _DataRectangle.Top - kDistanceForNonFittingPoints, _DataRectangle.Bottom + kDistanceForNonFittingPoints);
             return dataRect.Bottom - val;
         }
 
@@ -208,24 +237,19 @@ namespace SharpGraphLib
             return MapY(value);
         }
 
-        public int[] MapX(double[] value, bool transform)
+        protected ScreenLocation[] MapCoordinates(GraphLocation[] value, bool transform, GraphBounds fixedBounds, Rectangle fixedRect = default)
         {
-            if (transform && TransformX != null)
+            if (transform && (TransformX != null || TransformY != null))
             {
-                for (int i = 0; i < value.Length; i++)
-                    TransformX(this, true, ref value[i]);
+                if (TransformX != null)
+                    for (int i = 0; i < value.Length; i++)
+                        TransformX(this, true, ref value[i].X);
+                if (TransformY != null)
+                    for (int i = 0; i < value.Length; i++)
+                        TransformY(this, true, ref value[i].Y);
             }
-            return MapX(value);
-        }
 
-        public int[] MapY(double[] value, bool transform, GraphBounds fixedBounds, Rectangle fixedRect = default)
-        {
-            if (transform && TransformY != null)
-            {
-                for (int i = 0; i < value.Length; i++)
-                    TransformY(this, true, ref value[i]);
-            }
-            return MapY(value, fixedBounds, fixedRect);
+            return MapCoordinates(value, fixedBounds, fixedRect);
         }
 
         public int MapY(double value, bool transform, GraphBounds fixedBounds, Rectangle fixedRect = default)

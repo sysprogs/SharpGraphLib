@@ -339,13 +339,13 @@ namespace SharpGraphLib
                     MinX = MaxX = x;
                 }
 
-                public void HandlePoint(int x, int y)
+                public void HandlePoint(ScreenLocation p)
                 {
-                    MinX = Math.Min(MinX, x);
-                    MaxX = Math.Max(MaxX, x);
+                    MinX = Math.Min(MinX, p.X);
+                    MaxX = Math.Max(MaxX, p.X);
 
-                    MinY = Math.Min(MinY, y);
-                    MaxY = Math.Max(MaxY, y);
+                    MinY = Math.Min(MinY, p.Y);
+                    MaxY = Math.Max(MaxY, p.Y);
                 }
 
                 public void Complete(ref GraphicsPath path)
@@ -355,11 +355,11 @@ namespace SharpGraphLib
                     path.AddRectangle(new Rectangle(MinX, MinY, MaxX - MinX + 1, MaxY - MinY + 1));
                 }
 
-                public bool ShouldContinue(int x, int y)
+                public bool ShouldContinue(ScreenLocation p)
                 {
-                    if (x == MaxX)
+                    if (p.X == MaxX)
                         return true;
-                    if (x == MaxX + 1 && x < MinX + 5)
+                    if (p.X == MaxX + 1 && p.X < MinX + 5)
                         return true;
                     return false;
                 }
@@ -380,49 +380,43 @@ namespace SharpGraphLib
                     List<Point> points = new List<Point> { Capacity = _Graph.PointCount };
                     PointMergingContext ctx = null;
 
-                    double[] rawX = null, rawY = null;
+                    GraphLocation[] rawPoints = null;
                     int firstPoint = 0;
-
 
                     for (int i = 0; i < sortedPoints.Count; i++)
                     {
                         var x = sortedPoints[i].Key;
                         if (x < minX)
                             continue;
-                        else if (rawX == null)
+                        else if (rawPoints == null)
                         {
                             firstPoint = Math.Max(0, i - 1);
-                            rawX = new double[sortedPoints.Count - firstPoint];
-                            rawY = new double[sortedPoints.Count - firstPoint];
+                            rawPoints = new GraphLocation[sortedPoints.Count - firstPoint];
 
-                            rawX[0] = sortedPoints[firstPoint].Key;
-                            rawY[0] = sortedPoints[firstPoint].Value;
+                            rawPoints[0] = new GraphLocation(sortedPoints[firstPoint].Key, sortedPoints[firstPoint].Value);
                         }
 
-                        rawX[i - firstPoint] = x;
-                        rawY[i - firstPoint] = sortedPoints[i].Value;
+                        rawPoints[i - firstPoint] = new GraphLocation(x, sortedPoints[i].Value);
 
                         if (x > maxX)
                         {
-                            Array.Resize(ref rawX, i - firstPoint + 1);
-                            Array.Resize(ref rawY, i - firstPoint + 1);
+                            Array.Resize(ref rawPoints, i - firstPoint + 1);
                             break;
                         }
                     }
 
-                    var tx = _Viewer.MapX(rawX, true);
-                    var ty = _Viewer.MapY(rawY, true, ForcedBounds, ForcedRectangle);
+                    var screenPoints = _Viewer.MapCoordinates(rawPoints, true, ForcedBounds, ForcedRectangle);
 
-                    for (int i = 0; i < tx.Length; i++)
+                    for (int i = 0; i < screenPoints.Length; i++)
                     {
-                        int x = tx[i], y = ty[i];
-                        if (i > 0 && (x == tx[i - 1] || ctx?.ShouldContinue(x, y) == true))
+                        var p = screenPoints[i];
+                        if (i > 0 && (p.X == screenPoints[i - 1].X || ctx?.ShouldContinue(p) == true))
                         {
                             FlushPoints(points, path);
                             if (ctx == null)
-                                ctx = new PointMergingContext(x);
-                            ctx.HandlePoint(tx[i - 1], ty[i - 1]);
-                            ctx.HandlePoint(x, y);
+                                ctx = new PointMergingContext(p.X);
+                            ctx.HandlePoint(screenPoints[i - 1]);
+                            ctx.HandlePoint(p);
                         }
                         else
                         {
@@ -430,10 +424,10 @@ namespace SharpGraphLib
                             {
                                 ctx.Complete(ref extraMergedPath);
                                 ctx = null;
-                                points.Add(new Point(tx[i - 1], ty[i - 1]));
+                                points.Add(new Point(screenPoints[i - 1].X, screenPoints[i - 1].Y));
                             }
 
-                            points.Add(new Point(x, y));
+                            points.Add(new Point(p.X, p.Y));
                         }
                     }
 
@@ -698,6 +692,32 @@ namespace SharpGraphLib
                     continue;
                 KeyValuePair<double, double> kv = gr.Graph.GetPointByIndex(nearestRefPoint);
                 double w = MapWidth(Math.Abs(kv.Key - x)), h = MapHeight(Math.Abs(kv.Value - y));
+                double thisDist = w * w + h * h;
+                if (thisDist < bestDist)
+                {
+                    bestDist = thisDist;
+                    bestPoint = new DisplayedGraph.DisplayedPoint(gr, nearestRefPoint);
+                }
+            }
+            return bestPoint;
+        }
+
+        public DisplayedGraph.DisplayedPoint FindNearestReferencePoint2(double dataX, int screenY, bool ignoreHiddenGraphs)
+        {
+            double bestDist = int.MaxValue;
+            DisplayedGraph.DisplayedPoint bestPoint = null;
+
+            foreach (DisplayedGraph gr in _Graphs)
+            {
+                if (ignoreHiddenGraphs && (gr.Hidden || gr.HiddenFromLegend))
+                    continue;
+
+                double yFound = gr.GetLinearlyInterpolatedY(dataX, out int nearestRefPoint);
+                if (double.IsNaN(yFound))
+                    continue;
+                KeyValuePair<double, double> kv = gr.Graph.GetPointByIndex(nearestRefPoint);
+
+                int w = MapWidth(Math.Abs(kv.Key - dataX)), h = Math.Abs(MapY(kv.Value, true, gr.ForcedBounds, gr.ForcedRectangle) - screenY);
                 double thisDist = w * w + h * h;
                 if (thisDist < bestDist)
                 {
