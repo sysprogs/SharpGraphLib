@@ -107,12 +107,28 @@ namespace SharpGraphLib
         #region Coordinate mapping functions
         public int MapX(double transformedValue)
         {
-            int val = (int)Math.Round(((transformedValue - TransformedBounds.MinX) * _DataRectangle.Width) / TransformedBounds.DeltaX);
+            int val = (int)Math.Round((transformedValue - TransformedBounds.MinX) * _DataRectangle.Width / TransformedBounds.DeltaX);
             if (val < 0)
                 val = -kDistanceForNonFittingPoints;
             if (val > _DataRectangle.Right)
                 val = _DataRectangle.Right + kDistanceForNonFittingPoints;
             return _DataRectangle.Left + val;
+        }
+
+        public int[] MapX(double[] transformedValues)
+        {
+            var bounds = TransformedBounds;
+            int[] result = new int[transformedValues.Length];
+            for (int i = 0; i < transformedValues.Length; i++)
+            {
+                int val = (int)Math.Round((transformedValues[i] - bounds.MinX) * _DataRectangle.Width / bounds.DeltaX);
+                if (val < 0)
+                    val = -kDistanceForNonFittingPoints;
+                if (val > _DataRectangle.Right)
+                    val = _DataRectangle.Right + kDistanceForNonFittingPoints;
+                result[i] = _DataRectangle.Left + val;
+            }
+            return result;
         }
 
         public int MapWidth(double transformedValue)
@@ -135,17 +151,37 @@ namespace SharpGraphLib
             return _DataRectangle.Bottom - val;
         }
 
-        public int MapY(double transformedValue, GraphBounds fixedBounds)
+        public int[] MapY(double[] transformedValues, GraphBounds fixedBounds, Rectangle fixedRect = default)
+        {
+            var bounds = fixedBounds.IsValid ? fixedBounds : TransformedBounds;
+            var dataRect = fixedRect.Height > 0 ? fixedRect : _DataRectangle;
+
+            int[] result = new int[transformedValues.Length];
+            for (int i = 0; i < transformedValues.Length; i++)
+            {
+                int val = (int)Math.Round(((transformedValues[i] - bounds.MinY) * dataRect.Height) / bounds.DeltaY);
+                if (val > dataRect.Bottom)
+                    val = dataRect.Bottom + kDistanceForNonFittingPoints;
+                if (val < 0)
+                    val = -kDistanceForNonFittingPoints;
+                result[i] = dataRect.Bottom - val;
+            }
+            return result;
+        }
+
+        public int MapY(double transformedValue, GraphBounds fixedBounds, Rectangle fixedRect = default)
         {
             if (!fixedBounds.IsValid)
                 return MapY(transformedValue);
 
-            int val = (int)Math.Round(((transformedValue - fixedBounds.MinY) * _DataRectangle.Height) / fixedBounds.DeltaY);
-            if (val > _DataRectangle.Bottom)
-                val = _DataRectangle.Bottom + kDistanceForNonFittingPoints;
+            var dataRect = fixedRect.Height > 0 ? fixedRect : _DataRectangle;
+
+            int val = (int)Math.Round(((transformedValue - fixedBounds.MinY) * dataRect.Height) / fixedBounds.DeltaY);
+            if (val > dataRect.Bottom)
+                val = dataRect.Bottom + kDistanceForNonFittingPoints;
             if (val < 0)
                 val = -kDistanceForNonFittingPoints;
-            return _DataRectangle.Bottom - val;
+            return dataRect.Bottom - val;
         }
 
         public int MapHeight(double transformedValue)
@@ -172,11 +208,31 @@ namespace SharpGraphLib
             return MapY(value);
         }
 
-        public int MapY(double value, bool transform, GraphBounds fixedBounds)
+        public int[] MapX(double[] value, bool transform)
+        {
+            if (transform && TransformX != null)
+            {
+                for (int i = 0; i < value.Length; i++)
+                    TransformX(this, true, ref value[i]);
+            }
+            return MapX(value);
+        }
+
+        public int[] MapY(double[] value, bool transform, GraphBounds fixedBounds, Rectangle fixedRect = default)
+        {
+            if (transform && TransformY != null)
+            {
+                for (int i = 0; i < value.Length; i++)
+                    TransformY(this, true, ref value[i]);
+            }
+            return MapY(value, fixedBounds, fixedRect);
+        }
+
+        public int MapY(double value, bool transform, GraphBounds fixedBounds, Rectangle fixedRect = default)
         {
             if (transform && (TransformY != null))
                 TransformY(this, true, ref value);
-            return MapY(value, fixedBounds);
+            return MapY(value, fixedBounds, fixedRect);
         }
 
         public double UnmapX(int value, bool reverseTransform)
@@ -440,7 +496,8 @@ namespace SharpGraphLib
         }
 
         Rectangle _DataRectangle;
-        GraphBounds _TransformedBounds, _ForcedBounds;
+        GraphBounds _NormalTransformedBounds;
+        GraphBounds _ForcedBoundsAsRequested;   //Might contain NaN for the non-overridden directions. TransformedBounds contains the fully computed value.
         bool _ForceCustomBounds;
 
         public bool ForceCustomBounds
@@ -462,31 +519,15 @@ namespace SharpGraphLib
                 TransformY(this, true, ref maxY);
             }
 
-            _ForcedBounds = new GraphBounds(minX, maxX, minY, maxY);
+            _ForcedBoundsAsRequested = new GraphBounds(minX, maxX, minY, maxY);
             ForceCustomBounds = true;
         }
 
-        protected GraphBounds NormalTransformedBounds => _TransformedBounds;
+
+        protected GraphBounds NormalTransformedBounds => _NormalTransformedBounds;
         protected GraphBounds TransformedBounds
         {
-            get
-            {
-                if (_ForceCustomBounds)
-                {
-                    GraphBounds forcedBounds = _ForcedBounds;
-                    if (double.IsNaN(forcedBounds.MinX))
-                        forcedBounds.MinX = _TransformedBounds.MinX;
-                    if (double.IsNaN(forcedBounds.MaxX))
-                        forcedBounds.MaxX = _TransformedBounds.MaxX;
-                    if (double.IsNaN(forcedBounds.MinY))
-                        forcedBounds.MinY = _TransformedBounds.MinY;
-                    if (double.IsNaN(forcedBounds.MaxY))
-                        forcedBounds.MaxY = _TransformedBounds.MaxY;
-                    return forcedBounds;
-                }
-                else
-                    return _TransformedBounds;
-            }
+            get; private set;
         }
 
         protected Rectangle DataRectangle
@@ -533,6 +574,29 @@ namespace SharpGraphLib
         [Category("Axes")]
         public event EventHandler<ComputeGridLinesEventArgs> ComputeGridLines;
 
+        GraphBounds ComputeEffectiveForcedBounds()
+        {
+            GraphBounds forcedBounds = _ForcedBoundsAsRequested;
+            if (double.IsNaN(forcedBounds.MinX))
+                forcedBounds.MinX = _NormalTransformedBounds.MinX;
+            if (double.IsNaN(forcedBounds.MaxX))
+                forcedBounds.MaxX = _NormalTransformedBounds.MaxX;
+            if (double.IsNaN(forcedBounds.MinY) && double.IsNaN(forcedBounds.MaxY))
+            {
+                double minX = forcedBounds.MinX, maxX = forcedBounds.MaxX;
+                FillTransformedDynamicValueBounds(ref forcedBounds);
+                forcedBounds.MinX = minX;
+                forcedBounds.MaxX = maxX;
+            }
+
+            if (double.IsNaN(forcedBounds.MinY))
+                forcedBounds.MinY = _NormalTransformedBounds.MinY;
+            if (double.IsNaN(forcedBounds.MaxY))
+                forcedBounds.MaxY = _NormalTransformedBounds.MaxY;
+
+            return forcedBounds;
+        }
+
         public virtual void UpdateScaling()
         {
             GraphBounds nonTransformedBounds;
@@ -561,19 +625,25 @@ namespace SharpGraphLib
                 transformedBounds.MaxY = max;
             }
 
-            _TransformedBounds = transformedBounds;
+            _NormalTransformedBounds = transformedBounds;
+            TransformedBounds = _ForceCustomBounds ? ComputeEffectiveForcedBounds() : _NormalTransformedBounds;
             _DataRectangle = new Rectangle(_AdditionalPadding.Left, _AdditionalPadding.Top, Width - _AdditionalPadding.Horizontal - 1, Height - _AdditionalPadding.Vertical - 1);
 
             ComputeGridLinesEventArgs yGridArgs = null;
             if (ComputeGridLines != null)
             {
-                yGridArgs = new ComputeGridLinesEventArgs(GridDimensionKind.Value, _YGrid, _TransformedBounds.MinY, _TransformedBounds.MaxY, _DataRectangle.Height);
+                var bounds = TransformedBounds;
+                yGridArgs = new ComputeGridLinesEventArgs(GridDimensionKind.Value, _YGrid, bounds.MinY, bounds.MaxY, _DataRectangle.Height);
                 ComputeGridLines(this, yGridArgs);
 
                 if (yGridArgs.GridLines != null)
                 {
-                    _TransformedBounds.MinY = yGridArgs.MinValue;
-                    _TransformedBounds.MaxY = yGridArgs.MaxValue;
+                    _NormalTransformedBounds.MinY = yGridArgs.MinValue;
+                    _NormalTransformedBounds.MaxY = yGridArgs.MaxValue;
+
+                    bounds.MinY = yGridArgs.MinValue;
+                    bounds.MaxY = yGridArgs.MaxValue;
+                    TransformedBounds = bounds;
                 }
             }
 
@@ -593,7 +663,6 @@ namespace SharpGraphLib
                 }
                 nonTransformedBounds = new GraphBounds(minX, maxX, minY, maxY);
             }
-
 
             using (Graphics gr = Graphics.FromHwnd(Handle))
             {
@@ -698,6 +767,10 @@ namespace SharpGraphLib
         {
             nonTransformedBounds = new GraphBounds();
             transformedBounds = new GraphBounds();
+        }
+
+        protected virtual void FillTransformedDynamicValueBounds(ref GraphBounds bounds)
+        {
         }
 
         protected override void OnResize(EventArgs e)

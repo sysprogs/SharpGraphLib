@@ -51,7 +51,7 @@ namespace SharpGraphLib
         LegendControl _Legend, _EmbeddedLegend;
         bool _EmbeddedLegendMoved = false;
 
-        bool _IndividualScaling;
+        bool _IndividualScaling, _ShowGraphsInSeparateBands;
 
         protected virtual void ApplyEmbeddedLegendStyle(LegendControl legend)
         {
@@ -164,6 +164,20 @@ namespace SharpGraphLib
             }
         }
 
+        public bool ShowGraphsInSeparateBands
+        {
+            get
+            {
+                return _ShowGraphsInSeparateBands;
+            }
+
+            set
+            {
+                _ShowGraphsInSeparateBands = value;
+                UpdateScaling();
+            }
+        }
+
         public DisplayedGraph ActiveGraph   //Used to determine the labels on the Y scale when using individual scaling
         {
             get
@@ -221,6 +235,7 @@ namespace SharpGraphLib
 
             PointMarkingStyle[] _PointMarkerOverride;
             public GraphBounds ForcedBounds;
+            public Rectangle ForcedRectangle;
 
             public class DisplayedPoint
             {
@@ -291,7 +306,7 @@ namespace SharpGraphLib
             public bool Hidden
             {
                 get { return _Hidden; }
-                set { _Hidden = value; _Viewer.Invalidate(); }
+                set { _Hidden = value; _Viewer.UpdateScaling(); }
             }
 
             public bool HiddenFromLegend
@@ -313,20 +328,130 @@ namespace SharpGraphLib
                 _LineWidth = lineWidth;
             }
 
-            internal GraphicsPath RebuildPath()
+            class PointMergingContext
+            {
+                public int MinY = int.MaxValue;
+                public int MaxY = int.MinValue;
+                public int MinX, MaxX;
+
+                public PointMergingContext(int x)
+                {
+                    MinX = MaxX = x;
+                }
+
+                public void HandlePoint(int x, int y)
+                {
+                    MinX = Math.Min(MinX, x);
+                    MaxX = Math.Max(MaxX, x);
+
+                    MinY = Math.Min(MinY, y);
+                    MaxY = Math.Max(MaxY, y);
+                }
+
+                public void Complete(ref GraphicsPath path)
+                {
+                    if (path == null)
+                        path = new GraphicsPath();
+                    path.AddRectangle(new Rectangle(MinX, MinY, MaxX - MinX + 1, MaxY - MinY + 1));
+                }
+
+                public bool ShouldContinue(int x, int y)
+                {
+                    if (x == MaxX)
+                        return true;
+                    if (x == MaxX + 1 && x < MinX + 5)
+                        return true;
+                    return false;
+                }
+            }
+
+            internal GraphicsPath RebuildPath(out GraphicsPath extraMergedPath)
             {
                 GraphicsPath path = new GraphicsPath();
-                if (_Graph.SortedPoints.Count > 0)
+                extraMergedPath = null;
+
+                var rect = _Viewer.DataRectangle;
+                double minX = _Viewer.UnmapX(rect.Left, true), maxX = _Viewer.UnmapX(rect.Right, true);
+
+                var sortedPoints = _Graph.SortedPoints;
+
+                if (sortedPoints.Count > 0)
                 {
-                    Point[] points = new Point[_Graph.PointCount];
-                    int idx = 0;
+                    List<Point> points = new List<Point> { Capacity = _Graph.PointCount };
+                    PointMergingContext ctx = null;
 
-                    foreach (KeyValuePair<double, double> kv in _Graph.SortedPoints)
-                        points[idx++] = new Point(_Viewer.MapX(kv.Key, true), _Viewer.MapY(kv.Value, true, ForcedBounds));
+                    double[] rawX = null, rawY = null;
+                    int firstPoint = 0;
 
-                    path.AddLines(points);
+
+                    for (int i = 0; i < sortedPoints.Count; i++)
+                    {
+                        var x = sortedPoints[i].Key;
+                        if (x < minX)
+                            continue;
+                        else if (rawX == null)
+                        {
+                            firstPoint = Math.Max(0, i - 1);
+                            rawX = new double[sortedPoints.Count - firstPoint];
+                            rawY = new double[sortedPoints.Count - firstPoint];
+
+                            rawX[0] = sortedPoints[firstPoint].Key;
+                            rawY[0] = sortedPoints[firstPoint].Value;
+                        }
+
+                        rawX[i - firstPoint] = x;
+                        rawY[i - firstPoint] = sortedPoints[i].Value;
+
+                        if (x > maxX)
+                        {
+                            Array.Resize(ref rawX, i - firstPoint + 1);
+                            Array.Resize(ref rawY, i - firstPoint + 1);
+                            break;
+                        }
+                    }
+
+                    var tx = _Viewer.MapX(rawX, true);
+                    var ty = _Viewer.MapY(rawY, true, ForcedBounds, ForcedRectangle);
+
+                    for (int i = 0; i < tx.Length; i++)
+                    {
+                        int x = tx[i], y = ty[i];
+                        if (i > 0 && (x == tx[i - 1] || ctx?.ShouldContinue(x, y) == true))
+                        {
+                            FlushPoints(points, path);
+                            if (ctx == null)
+                                ctx = new PointMergingContext(x);
+                            ctx.HandlePoint(tx[i - 1], ty[i - 1]);
+                            ctx.HandlePoint(x, y);
+                        }
+                        else
+                        {
+                            if (ctx != null)
+                            {
+                                ctx.Complete(ref extraMergedPath);
+                                ctx = null;
+                                points.Add(new Point(tx[i - 1], ty[i - 1]));
+                            }
+
+                            points.Add(new Point(x, y));
+                        }
+                    }
+
+                    ctx?.Complete(ref extraMergedPath);
+                    FlushPoints(points, path);
                 }
+
                 return path;
+            }
+
+            static void FlushPoints(List<Point> points, GraphicsPath path)
+            {
+                if (points.Count > 1)
+                {
+                    path.StartFigure();
+                    path.AddLines(points.ToArray());
+                }
+                points.Clear();
             }
 
             public DisplayedPoint FindPoint(double X, double Y)
@@ -414,8 +539,11 @@ namespace SharpGraphLib
                 foreach (KeyValuePair<double, double> kv in Graph.SortedPoints)
                 {
                     double x = kv.Key, y = kv.Value;
-                    bounds.MinX = Math.Min(bounds.MinX, x);
-                    bounds.MaxX = Math.Max(bounds.MaxX, x);
+                    if (x < bounds.MinX)
+                        continue;
+                    if (x > bounds.MaxX)
+                        break;
+
                     bounds.MinY = Math.Min(bounds.MinY, y);
                     bounds.MaxY = Math.Max(bounds.MaxY, y);
                 }
@@ -492,7 +620,7 @@ namespace SharpGraphLib
         {
             if (gr.ForcedBounds.IsValid)
             {
-                int dX = MapX(X1, true) - MapX(X2, true), dY = MapY(yFromMouse, true) - MapY(yFromGraph, true, gr.ForcedBounds);
+                int dX = MapX(X1, true) - MapX(X2, true), dY = MapY(yFromMouse, true, gr.ForcedBounds, gr.ForcedRectangle) - MapY(yFromGraph, true, gr.ForcedBounds, gr.ForcedRectangle);
                 return dX * dX + dY * dY;
             }
             else
@@ -629,10 +757,56 @@ namespace SharpGraphLib
                 base.GetRawDataBounds(out nonTransformedBounds, out transformedBounds);
         }
 
+        protected override void FillTransformedDynamicValueBounds(ref GraphBounds bounds)
+        {
+            if (_Graphs.Count == 0)
+            {
+                base.FillTransformedDynamicValueBounds(ref bounds);
+                return;
+            }
+
+            int pointsProcessed = 0;
+            bounds.MinY = double.MaxValue;
+            bounds.MaxY = double.MinValue;
+
+            foreach (DisplayedGraph gr in _Graphs)
+            {
+                if (IndividualScaling && ActiveGraph != null && ActiveGraph.ForcedBounds.IsValid && gr != ActiveGraph)
+                    continue;
+                if (gr.Hidden)
+                    continue;
+
+                foreach (KeyValuePair<double, double> kv in gr.Graph.SortedPoints)
+                {
+                    double x = kv.Key;
+                    DoTransformX(ref x);
+                    if (double.IsInfinity(x) || double.IsNaN(x))
+                        continue;
+                    if (x < bounds.MinX || x > bounds.MaxX)
+                        continue;
+
+                    double y = kv.Value;
+                    DoTransformY(ref y);
+                    if (!double.IsInfinity(y) && !double.IsNaN(y))
+                    {
+                        bounds.MinY = Math.Min(bounds.MinY, y);
+                        bounds.MaxY = Math.Max(bounds.MaxY, y);
+                        pointsProcessed++;
+                    }
+                }
+            }
+
+            if (pointsProcessed == 0)
+                bounds.MinY = bounds.MaxY = double.NaN;
+        }
+
+
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
-            e.Graphics.SetClip(DataRectangle);
+
+            var clipRect = new Rectangle(DataRectangle.X, DataRectangle.Y, DataRectangle.Width + 2, DataRectangle.Height + 2);
+            e.Graphics.SetClip(clipRect);
             Pen pointMarkerPen = null;
 
             foreach (DisplayedGraph gr in _Graphs)
@@ -643,7 +817,12 @@ namespace SharpGraphLib
                 if (_HighlightedGraph == gr)
                     lineWidth += 2;
                 Pen pen = new Pen(gr.Color, lineWidth);
-                e.Graphics.DrawPath(pen, gr.RebuildPath());
+                e.Graphics.DrawPath(pen, gr.RebuildPath(out var mergedPath));
+                if (mergedPath != null)
+                {
+                    using (var br = new SolidBrush(gr.Color))
+                        e.Graphics.FillPath(br, mergedPath);
+                }
 
                 int idx = 0;
                 foreach (KeyValuePair<double, double> kv in gr.Graph.SortedPoints)
@@ -655,7 +834,7 @@ namespace SharpGraphLib
 
                     if (pointMarkerPen == null)
                         pointMarkerPen = new Pen(new SolidBrush(ForeColor));
-                    int x = MapX(kv.Key, true), y = MapY(kv.Value, true, gr.ForcedBounds);
+                    int x = MapX(kv.Key, true), y = MapY(kv.Value, true, gr.ForcedBounds, gr.ForcedRectangle);
                     switch (style)
                     {
                         case DisplayedGraph.PointMarkingStyle.Square:
@@ -689,15 +868,32 @@ namespace SharpGraphLib
         public override void UpdateScaling()
         {
             base.UpdateScaling();
-            foreach (var gr in _Graphs)
-                if (_IndividualScaling)
-                {
-                    GraphBounds bounds = GraphBounds.CreateInitial();
-                    gr.UpdateBounds(ref bounds);
-                    gr.ForcedBounds = bounds;
-                }
-                else
-                    gr.ForcedBounds = GraphBounds.Invalid;
+
+            int graphNum = 0, graphCount = _Graphs.Count;
+            if (graphCount != 0)
+            {
+                int bandHeight = DataRectangle.Height / graphCount;
+
+                foreach (var gr in _Graphs)
+                    if (_IndividualScaling)
+                    {
+                        GraphBounds bounds = TransformedBounds;
+                        bounds.MinY = double.MaxValue;
+                        bounds.MaxY = double.MinValue;
+                        gr.UpdateBounds(ref bounds);
+                        gr.ForcedBounds = bounds;
+
+                        if (_ShowGraphsInSeparateBands)
+                            gr.ForcedRectangle = new Rectangle(DataRectangle.Left, DataRectangle.Top + graphNum++ * bandHeight, DataRectangle.Width, bandHeight * 9 / 10);
+                        else
+                            gr.ForcedRectangle = default;
+                    }
+                    else
+                    {
+                        gr.ForcedBounds = GraphBounds.Invalid;
+                        gr.ForcedRectangle = default;
+                    }
+            }
         }
 
     }

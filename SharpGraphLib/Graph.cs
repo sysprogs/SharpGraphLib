@@ -26,11 +26,6 @@ namespace SharpGraphLib
             _SortedDataUpdatePending = true;
         }
 
-        public void AddPoint(object virtualCoord, double value)
-        {
-            throw new NotImplementedException();
-        }
-
         public List<KeyValuePair<double, double>> SortedPoints
         {
             get
