@@ -500,7 +500,7 @@ namespace SharpGraphLib
                                 }
                             }
 
-                            nextAvailablePosition = line.TextCoordinate + (Data[0].LabelSize + MinDistanceBetweenLabels) * direction;
+                            nextAvailablePosition = line.TextCoordinate + (Data[i].LabelSize + MinDistanceBetweenLabels) * direction;
                             lastVisibleLabel = i;
                         }
                         if (!restart)
