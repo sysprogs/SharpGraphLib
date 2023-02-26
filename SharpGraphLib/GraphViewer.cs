@@ -248,15 +248,10 @@ namespace SharpGraphLib
                     _PointIndex = index;
                 }
 
-                public double X
-                {
-                    get { return _Graph.Graph.GetPointByIndex(_PointIndex).Key; }
-                }
+                public double X => _Graph.Graph.GetPointByIndex(_PointIndex).X;
+                public double Y => _Graph.Graph.GetPointByIndex(_PointIndex).Y;
 
-                public double Y
-                {
-                    get { return _Graph.Graph.GetPointByIndex(_PointIndex).Value; }
-                }
+                public RawGraphPoint RawPoint => _Graph.Graph.GetPointByIndex(_PointIndex);
 
                 public DisplayedGraph Graph { get { return _Graph; } }
 
@@ -385,7 +380,7 @@ namespace SharpGraphLib
 
                     for (int i = 0; i < sortedPoints.Count; i++)
                     {
-                        var x = sortedPoints[i].Key;
+                        var x = sortedPoints[i].X;
                         if (x < minX)
                             continue;
                         else if (rawPoints == null)
@@ -393,10 +388,10 @@ namespace SharpGraphLib
                             firstPoint = Math.Max(0, i - 1);
                             rawPoints = new GraphLocation[sortedPoints.Count - firstPoint];
 
-                            rawPoints[0] = new GraphLocation(sortedPoints[firstPoint].Key, sortedPoints[firstPoint].Value);
+                            rawPoints[0] = new GraphLocation(sortedPoints[firstPoint].X, sortedPoints[firstPoint].Y);
                         }
 
-                        rawPoints[i - firstPoint] = new GraphLocation(x, sortedPoints[i].Value);
+                        rawPoints[i - firstPoint] = new GraphLocation(x, sortedPoints[i].Y);
 
                         if (x > maxX)
                         {
@@ -461,9 +456,9 @@ namespace SharpGraphLib
 
                 for (int i = 0; i < _Graph.SortedPoints.Count; i++)
                 {
-                    KeyValuePair<double, double> kv = _Graph.GetPointByIndex(i);
-                    double distX = (X - kv.Key) / maxDistX;
-                    double distY = (Y - kv.Value) / maxDistY;
+                    var kv = _Graph.GetPointByIndex(i);
+                    double distX = (X - kv.X) / maxDistX;
+                    double distY = (Y - kv.Y) / maxDistY;
                     double dist = distX * distX + distY * distY;
 
                     if (dist < bestDist)
@@ -471,7 +466,7 @@ namespace SharpGraphLib
                         bestPoint = i;
                         bestDist = dist;
                     }
-                    if (kv.Key > X)
+                    if (kv.X > X)
                         break;
                 }
 
@@ -492,25 +487,25 @@ namespace SharpGraphLib
                 nearestRefPoint = 0;
                 for (int i = 0; i < _Graph.SortedPoints.Count; i++)
                 {
-                    KeyValuePair<double, double> kv = _Graph.GetPointByIndex(i);
-                    if (kv.Key < X)
+                    var kv = _Graph.GetPointByIndex(i);
+                    if (kv.X < X)
                         continue;
-                    if (kv.Key == X)
-                        return kv.Value;
+                    if (kv.X == X)
+                        return kv.Y;
                     if (i == 0)
                         return double.NaN;   //TODO: support extrapolation
 
-                    KeyValuePair<double, double> kv0 = _Graph.GetPointByIndex(i - 1);
+                    var kv0 = _Graph.GetPointByIndex(i - 1);
 
-                    double dx = kv.Key - kv0.Key;
-                    double dy = kv.Value - kv0.Value;
+                    double dx = kv.X - kv0.X;
+                    double dy = kv.Y - kv0.Y;
 
-                    if ((X - kv0.Key) < (kv.Key - X))
+                    if ((X - kv0.X) < (kv.X - X))
                         nearestRefPoint = i - 1;
                     else
                         nearestRefPoint = i;
 
-                    return kv0.Value + ((X - kv0.Key) * dy / dx);
+                    return kv0.Y + ((X - kv0.X) * dy / dx);
                 }
                 return double.NaN;
             }
@@ -530,9 +525,9 @@ namespace SharpGraphLib
 
             internal void UpdateBounds(ref GraphBounds bounds)
             {
-                foreach (KeyValuePair<double, double> kv in Graph.SortedPoints)
+                foreach (var kv in Graph.SortedPoints)
                 {
-                    double x = kv.Key, y = kv.Value;
+                    double x = kv.X, y = kv.Y;
                     if (x < bounds.MinX)
                         continue;
                     if (x > bounds.MaxX)
@@ -639,7 +634,7 @@ namespace SharpGraphLib
                 if (double.IsNaN(yFound))
                     continue;
 
-                KeyValuePair<double, double> kv = gr.Graph.GetPointByIndex(nearestRefPoint);
+                var kv = gr.Graph.GetPointByIndex(nearestRefPoint);
                 int thisDistanceSquare = MapAndSquareDistance(x, x, y, yFound, gr);
                 if (thisDistanceSquare < bestDistanceSquare)
                 {
@@ -665,8 +660,8 @@ namespace SharpGraphLib
                 double yFound = gr.GetLinearlyInterpolatedY(x, out nearestRefPoint);
                 if (double.IsNaN(yFound))
                     continue;
-                KeyValuePair<double, double> kv = gr.Graph.GetPointByIndex(nearestRefPoint);
-                double thisDist = Math.Abs(kv.Key - x);
+                var kv = gr.Graph.GetPointByIndex(nearestRefPoint);
+                double thisDist = Math.Abs(kv.X - x);
                 if (thisDist < bestDist)
                 {
                     bestDist = thisDist;
@@ -690,8 +685,8 @@ namespace SharpGraphLib
                 double yFound = gr.GetLinearlyInterpolatedY(x, out nearestRefPoint);
                 if (double.IsNaN(yFound))
                     continue;
-                KeyValuePair<double, double> kv = gr.Graph.GetPointByIndex(nearestRefPoint);
-                double w = MapWidth(Math.Abs(kv.Key - x)), h = MapHeight(Math.Abs(kv.Value - y));
+                var kv = gr.Graph.GetPointByIndex(nearestRefPoint);
+                double w = MapWidth(Math.Abs(kv.X - x)), h = MapHeight(Math.Abs(kv.Y - y));
                 double thisDist = w * w + h * h;
                 if (thisDist < bestDist)
                 {
@@ -715,9 +710,9 @@ namespace SharpGraphLib
                 double yFound = gr.GetLinearlyInterpolatedY(dataX, out int nearestRefPoint);
                 if (double.IsNaN(yFound))
                     continue;
-                KeyValuePair<double, double> kv = gr.Graph.GetPointByIndex(nearestRefPoint);
+                var kv = gr.Graph.GetPointByIndex(nearestRefPoint);
 
-                int w = MapWidth(Math.Abs(kv.Key - dataX)), h = Math.Abs(MapY(kv.Value, true, gr.ForcedBounds, gr.ForcedRectangle) - screenY);
+                int w = MapWidth(Math.Abs(kv.X - dataX)), h = Math.Abs(MapY(kv.Y, true, gr.ForcedBounds, gr.ForcedRectangle) - screenY);
                 double thisDist = w * w + h * h;
                 if (thisDist < bestDist)
                 {
@@ -747,9 +742,9 @@ namespace SharpGraphLib
                 if (IndividualScaling && ActiveGraph != null && ActiveGraph.ForcedBounds.IsValid && gr != ActiveGraph)
                     continue;
 
-                foreach (KeyValuePair<double, double> kv in gr.Graph.SortedPoints)
+                foreach (var kv in gr.Graph.SortedPoints)
                 {
-                    double x = kv.Key;
+                    double x = kv.X;
                     nonTransformedBounds.MinX = Math.Min(nonTransformedBounds.MinX, x);
                     nonTransformedBounds.MaxX = Math.Max(nonTransformedBounds.MaxX, x);
                     DoTransformX(ref x);
@@ -758,7 +753,7 @@ namespace SharpGraphLib
                         transformedBounds.MinX = Math.Min(transformedBounds.MinX, x);
                         transformedBounds.MaxX = Math.Max(transformedBounds.MaxX, x);
                     }
-                    double y = kv.Value;
+                    double y = kv.Y;
                     nonTransformedBounds.MinY = Math.Min(nonTransformedBounds.MinY, y);
                     nonTransformedBounds.MaxY = Math.Max(nonTransformedBounds.MaxY, y);
                     DoTransformY(ref y);
@@ -796,16 +791,16 @@ namespace SharpGraphLib
                 if (gr.Hidden)
                     continue;
 
-                foreach (KeyValuePair<double, double> kv in gr.Graph.SortedPoints)
+                foreach (var kv in gr.Graph.SortedPoints)
                 {
-                    double x = kv.Key;
+                    double x = kv.X;
                     DoTransformX(ref x);
                     if (double.IsInfinity(x) || double.IsNaN(x))
                         continue;
                     if (x < bounds.MinX || x > bounds.MaxX)
                         continue;
 
-                    double y = kv.Value;
+                    double y = kv.Y;
                     DoTransformY(ref y);
                     if (!double.IsInfinity(y) && !double.IsNaN(y))
                     {
@@ -845,7 +840,7 @@ namespace SharpGraphLib
                 }
 
                 int idx = 0;
-                foreach (KeyValuePair<double, double> kv in gr.Graph.SortedPoints)
+                foreach (var kv in gr.Graph.SortedPoints)
                 {
                     DisplayedGraph.PointMarkingStyle style = gr.GetStyleForPoint(idx++);
 
@@ -854,7 +849,7 @@ namespace SharpGraphLib
 
                     if (pointMarkerPen == null)
                         pointMarkerPen = new Pen(new SolidBrush(ForeColor));
-                    int x = MapX(kv.Key, true), y = MapY(kv.Value, true, gr.ForcedBounds, gr.ForcedRectangle);
+                    int x = MapX(kv.X, true), y = MapY(kv.Y, true, gr.ForcedBounds, gr.ForcedRectangle);
                     switch (style)
                     {
                         case DisplayedGraph.PointMarkingStyle.Square:
