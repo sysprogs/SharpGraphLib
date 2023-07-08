@@ -784,6 +784,9 @@ namespace SharpGraphLib
             bounds.MinY = double.MaxValue;
             bounds.MaxY = double.MinValue;
 
+            if (AlwaysShowZeroY)
+                bounds.MinY = bounds.MaxY = 0;
+
             foreach (DisplayedGraph gr in _Graphs)
             {
                 if (IndividualScaling && ActiveGraph != null && ActiveGraph.ForcedBounds.IsValid && gr != ActiveGraph)
