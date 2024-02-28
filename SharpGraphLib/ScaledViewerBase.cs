@@ -430,8 +430,11 @@ namespace SharpGraphLib
 
                 List<GridLine> lines = new List<GridLine>();
 
-                for (double val = gridStart; val < gridEnd; val += gridSpacing)
-                    lines.Add(new GridLine { RawValue = val });
+                if (pixelRange > 0)
+                {
+                    for (double val = gridStart; val < gridEnd && lines.Count <= pixelRange; val += gridSpacing)
+                        lines.Add(new GridLine { RawValue = val });
+                }
 
                 return new GridDimension { Transformed = gridTransformed, Data = lines.ToArray() };
             }
